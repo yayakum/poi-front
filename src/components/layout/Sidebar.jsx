@@ -1,23 +1,137 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MoreVertical, Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import ChatList from '../chat/ChatList.jsx';
 
-const Sidebar = ({ openModal, setProfileMenuActive, profileMenuActive, setOptionsMenuActive, optionsMenuActive }) => {
+// Import avatar images
+import BMO from '../../assets/BMO.jpg';
+import BonnibelBubblegum from '../../assets/BonnibelBubblegum.jpg';
+import Finn from '../../assets/Finn.jpg';
+import FlamePrincess from '../../assets/FlamePrincess.jpg';
+import Gunter from '../../assets/Gunter.jpg';
+import IceKing from '../../assets/IceKing.jpg';
+import Jake from '../../assets/Jake.jpg';
+import LadyRainicorn from '../../assets/LadyRainicorn.jpg';
+import Lemongrab from '../../assets/Lemongrab.jpg';
+import LumpySpacePrincess from '../../assets/LumpySpacePrincess.jpg';
+import Marcelline from '../../assets/Marcelline.jpg';
+
+// Define avatar mapping
+const avatarMap = {
+  'assets/BMO.jpg': BMO,
+  'assets/BonnibelBubblegum.jpg': BonnibelBubblegum,
+  'assets/Finn.jpg': Finn,
+  'assets/FlamePrincess.jpg': FlamePrincess,
+  'assets/Gunter.jpg': Gunter,
+  'assets/IceKing.jpg': IceKing,
+  'assets/Jake.jpg': Jake,
+  'assets/LadyRainicorn.jpg': LadyRainicorn,
+  'assets/Lemongrab.jpg': Lemongrab,
+  'assets/LumpySpacePrincess.jpg': LumpySpacePrincess,
+  'assets/Marcelline.jpg': Marcelline
+};
+
+const Sidebar = ({ 
+  openModal, 
+  setProfileMenuActive, 
+  profileMenuActive, 
+  setOptionsMenuActive, 
+  optionsMenuActive, 
+  setSelectedUser,
+  setSelectedGroup 
+}) => {
+  const [user, setUser] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        // Get user ID from localStorage
+        const storedUser = JSON.parse(localStorage.getItem('user'));
+        
+        if (!storedUser || !storedUser.id) {
+          navigate('/');
+          return;
+        }
+        
+        // Fetch fresh user data from API
+        const response = await axios.get(`http://localhost:3000/api/users/${storedUser.id}`, {
+          withCredentials: true
+        });
+        
+        if (response.data.ok && response.data.usuario) {
+          // Use fresh data from API instead of localStorage
+          setUser(response.data.usuario);
+        } else {
+          navigate('/');
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+        navigate('/');
+      }
+    };
+    
+    fetchUserData();
+  }, [navigate]);
+
+  const handleLogout = async () => {
+    try {
+      // Get user ID from state
+      if (user && user.id) {
+        // Call API to update offline status
+        await axios.post('http://localhost:3000/api/logout', {
+          id: user.id
+        });
+        
+        // Clear localStorage
+        localStorage.removeItem('user');
+        
+        // Redirect to login page
+        navigate('/');
+      }
+    } catch (error) {
+      console.error('Error logging out:', error);
+      alert('Error al cerrar sesión');
+    }
+  };
+
+  // Get the correct avatar image based on the path
+  const getAvatarImage = (path) => {
+    return path && avatarMap[path] ? avatarMap[path] : null;
+  };
+
   return (
     <div className="w-1/3 border-r border-gray-200">
       <div className="bg-gray-100 p-4 flex items-center relative">
-        <div className="w-10 h-10 rounded-full bg-emerald-700 mr-3 cursor-pointer"
-              onClick={() => setProfileMenuActive(!profileMenuActive)}></div>
-        <span>Mi Perfil</span>
+        <div 
+          className="w-10 h-10 rounded-full bg-emerald-700 mr-3 cursor-pointer overflow-hidden" 
+          onClick={(e) => {
+            e.stopPropagation();
+            setProfileMenuActive(!profileMenuActive);
+            setOptionsMenuActive(false);
+          }}
+        >
+          {user?.foto_perfil ? (
+            <img 
+              src={getAvatarImage(user.foto_perfil)} 
+              alt={user.nombre} 
+              className="w-full h-full object-cover rounded-full" 
+            />
+          ) : (
+            <span className="text-white font-bold flex items-center justify-center h-full">
+              {user?.nombre?.charAt(0).toUpperCase()}
+            </span>
+          )}
+        </div>
+        <span>{user?.nombre}</span>
         
         {profileMenuActive && (
           <div className="absolute top-14 left-3 bg-white shadow-md rounded z-50">
             <ul>
-              <li className="py-3 px-5 cursor-pointer hover:bg-gray-100" 
-                  onClick={() => openModal('profile')}>Perfil</li>
-              <li className="py-3 px-5 cursor-pointer hover:bg-gray-100"
-                  onClick={() => openModal('tasks')}>Tareas</li>
-              <li className="py-3 px-5 cursor-pointer hover:bg-gray-100">Cerrar sesión</li>
+              <li className="py-3 px-5 cursor-pointer hover:bg-gray-100" onClick={() => openModal('rewards')}>Recompensas</li>
+              <li className="py-3 px-5 cursor-pointer hover:bg-gray-100" onClick={handleLogout}>Cerrar sesión</li>
             </ul>
           </div>
         )}
@@ -27,6 +141,7 @@ const Sidebar = ({ openModal, setProfileMenuActive, profileMenuActive, setOption
           onClick={(e) => {
             e.stopPropagation();
             setOptionsMenuActive(!optionsMenuActive);
+            setProfileMenuActive(false);
           }}
         >
           <MoreVertical size={20} className="text-gray-600" />
@@ -35,10 +150,8 @@ const Sidebar = ({ openModal, setProfileMenuActive, profileMenuActive, setOption
         {optionsMenuActive && (
           <div className="absolute top-14 right-3 bg-white shadow-md rounded z-50">
             <ul>
-              <li className="py-3 px-5 cursor-pointer hover:bg-gray-100"
-                  onClick={() => openModal('editProfile')}>Editar perfil</li>
-              <li className="py-3 px-5 cursor-pointer hover:bg-gray-100"
-                  onClick={() => openModal('newGroup')}>Crear nuevo grupo</li>
+              <li className="py-3 px-5 cursor-pointer hover:bg-gray-100" onClick={() => openModal('editProfile')}>Editar perfil</li>
+              <li className="py-3 px-5 cursor-pointer hover:bg-gray-100" onClick={() => openModal('newGroup')}>Crear nuevo grupo</li>
             </ul>
           </div>
         )}
@@ -51,11 +164,16 @@ const Sidebar = ({ openModal, setProfileMenuActive, profileMenuActive, setOption
             type="text" 
             placeholder="Buscar o empezar nuevo chat" 
             className="w-full border-none bg-transparent outline-none ml-3 text-sm"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
       </div>
       
-      <ChatList />
+      <ChatList 
+        setSelectedUser={setSelectedUser} 
+        setSelectedGroup={setSelectedGroup} 
+      />
     </div>
   );
 };

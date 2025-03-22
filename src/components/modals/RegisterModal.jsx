@@ -134,7 +134,7 @@ const RegisterModal = ({ isOpen, onClose, onRegister }) => {
     }
 
     try {
-      const response = await axios.post('http://localhost:3000/api/', {
+      const response = await axios.post('http://localhost:3000/api/users/', {
         nombre: registerName,
         telefono: registerPhone,
         password: registerPassword,
@@ -157,7 +157,7 @@ const RegisterModal = ({ isOpen, onClose, onRegister }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg w-full max-w-md p-8 relative">
         <button
           onClick={onClose}

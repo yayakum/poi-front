@@ -1,60 +1,126 @@
 // Login.jsx
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // Importar useNavigate para redirección
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MessageSquare } from 'lucide-react';
+import axios from 'axios';
 import RegisterModal from '../../components/modals/RegisterModal.jsx';
 
 const Login = () => {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [phoneError, setPhoneError] = useState(false);
-  const [passwordError, setPasswordError] = useState(false);
+  const [errors, setErrors] = useState({
+    phone: '',
+    password: '',
+    server: ''
+  });
+  const [visualErrors, setVisualErrors] = useState({
+    phone: false,
+    password: false
+  });
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
-  const navigate = useNavigate(); // Hook para redirección
+  const navigate = useNavigate();
+
+  // Efecto para controlar los errores visuales cuando cambien los errores de texto
+  useEffect(() => {
+    // Actualizar errores visuales basados en los errores de texto
+    const newVisualErrors = {
+      phone: !!errors.phone,
+      password: !!errors.password
+    };
+    
+    setVisualErrors(newVisualErrors);
+    
+    // Configurar temporizadores para eliminar los errores visuales después de 10 segundos
+    const timers = [];
+    
+    if (errors.phone) {
+      const phoneTimer = setTimeout(() => {
+        setVisualErrors(prev => ({ ...prev, phone: false }));
+      }, 10000);
+      timers.push(phoneTimer);
+    }
+    
+    if (errors.password) {
+      const passwordTimer = setTimeout(() => {
+        setVisualErrors(prev => ({ ...prev, password: false }));
+      }, 10000);
+      timers.push(passwordTimer);
+    }
+    
+    // Limpiar todos los temporizadores cuando el componente se desmonte o los errores cambien
+    return () => {
+      timers.forEach(timer => clearTimeout(timer));
+    };
+  }, [errors]);
+
+  // También configuramos un temporizador para el error del servidor
+  useEffect(() => {
+    let serverErrorTimer;
+    
+    if (errors.server) {
+      serverErrorTimer = setTimeout(() => {
+        setErrors(prev => ({ ...prev, server: '' }));
+      }, 10000);
+    }
+    
+    return () => {
+      if (serverErrorTimer) clearTimeout(serverErrorTimer);
+    };
+  }, [errors.server]);
+
+  const validateForm = () => {
+    const newErrors = {
+      phone: '',
+      password: '',
+      server: ''
+    };
+    
+    let isValid = true;
+
+    // Validaciones básicas
+    if (!phone) {
+      newErrors.phone = 'Este campo es obligatorio';
+      isValid = false;
+    }
+
+    if (!password) {
+      newErrors.password = 'Este campo es obligatorio';
+      isValid = false;
+    }
+
+    setErrors(newErrors);
+    return isValid;
+  };
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
 
-    // Validaciones básicas
-    if (!phone) {
-      setPhoneError(true);
-    } else {
-      setPhoneError(false);
+    if (!validateForm()) {
+      return;
     }
 
-    if (password.length < 6) {
-      setPasswordError(true);
-    } else {
-      setPasswordError(false);
-    }
+    try {
+      const response = await axios.post('http://localhost:3000/api/login', {
+        telefono: phone,
+        password,
+      });
 
-    if (phone && password.length >= 6) {
-      try {
-        // Simular una llamada a la API de autenticación
-        const response = await fetch('/api/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ phone, password }),
+      if (response.data.ok) {
+        // Almacenar la información del usuario en localStorage
+        localStorage.setItem('user', JSON.stringify(response.data.usuario));
+        navigate('/dashboard');
+      } else {
+        setErrors({
+          ...errors,
+          server: 'Credenciales incorrectas'
         });
-
-        const data = await response.json();
-
-        if (response.ok) {
-          // Guardar el token de autenticación en localStorage (o en un estado global)
-          localStorage.setItem('token', data.token);
-
-          // Redirigir al dashboard
-          navigate('/dashboard');
-        } else {
-          // Mostrar un mensaje de error si la autenticación falla
-          alert(data.mensaje || 'Error en la autenticación');
-        }
-      } catch (error) {
-        console.error('Error en la autenticación:', error);
-        alert('Error en la autenticación');
       }
+    } catch (error) {
+      console.error('Error al iniciar sesión:', error);
+      setErrors({
+        ...errors,
+        server: error.response?.data?.mensaje || 'Error al iniciar sesión'
+      });
     }
   };
 
@@ -81,13 +147,13 @@ const Login = () => {
             <input
               type="text"
               id="phone"
-              className={`w-full px-4 py-3 border ${phoneError ? 'border-red-500' : 'border-gray-200'} rounded-lg focus:outline-none focus:border-green-600`}
+              className={`w-full px-4 py-3 border ${visualErrors.phone ? 'border-red-500' : 'border-gray-200'} rounded-lg focus:outline-none focus:border-green-600`}
               placeholder="Ingrese su número telefónico"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
             />
-            {phoneError && (
-              <p className="text-red-500 text-sm mt-1">Por favor, introduce un número de teléfono válido</p>
+            {errors.phone && (
+              <p className="text-red-500 text-sm mt-1">{errors.phone}</p>
             )}
           </div>
           
@@ -98,15 +164,19 @@ const Login = () => {
             <input
               type="password"
               id="password"
-              className={`w-full px-4 py-3 border ${passwordError ? 'border-red-500' : 'border-gray-200'} rounded-lg focus:outline-none focus:border-green-600`}
+              className={`w-full px-4 py-3 border ${visualErrors.password ? 'border-red-500' : 'border-gray-200'} rounded-lg focus:outline-none focus:border-green-600`}
               placeholder="Ingresa tu contraseña"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
-            {passwordError && (
-              <p className="text-red-500 text-sm mt-1">La contraseña debe tener al menos 6 caracteres</p>
+            {errors.password && (
+              <p className="text-red-500 text-sm mt-1">{errors.password}</p>
             )}
           </div>
+          
+          {errors.server && (
+            <p className="text-red-500 text-sm mb-4">{errors.server}</p>
+          )}
           
           <button 
             type="submit" 
