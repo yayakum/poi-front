@@ -125,6 +125,11 @@ const RewardsModal = ({ closeModal }) => {
     setSelectedImage(null);
   };
 
+  // Verificar si una recompensa ya ha sido canjeada por el usuario
+  const isRewardRedeemed = (rewardId) => {
+    return redeemedRewards.some(item => item.rewardId === rewardId);
+  };
+
   const handleRedeemReward = async (rewardId, pointsCost) => {
     // Si no hay ID de usuario, no podemos proceder
     if (!userData.id) {
@@ -135,6 +140,13 @@ const RewardsModal = ({ closeModal }) => {
     // Verificar que el usuario tiene suficientes puntos
     if (userPoints < pointsCost) {
       setError('No tienes suficientes puntos para canjear esta recompensa.');
+      setTimeout(() => setError(null), 5000);
+      return;
+    }
+
+    // Verificar si ya ha sido canjeada
+    if (isRewardRedeemed(rewardId)) {
+      setError('Ya has canjeado esta recompensa anteriormente.');
       setTimeout(() => setError(null), 5000);
       return;
     }
@@ -288,11 +300,16 @@ const RewardsModal = ({ closeModal }) => {
                     availableRewards.map((reward) => {
                       // Obtener la imagen correcta para la recompensa usando la función centralizada
                       const rewardImage = getAvatarByName(reward.recompensa);
+                      const alreadyRedeemed = isRewardRedeemed(reward.id);
                       
                       return (
                         <div 
                           key={reward.id} 
-                          className={`bg-white rounded-lg p-4 shadow-md border ${userPoints >= reward.costo_puntos ? 'border-emerald-200' : 'border-gray-200 opacity-70'}`}
+                          className={`bg-white rounded-lg p-4 shadow-md border ${
+                            alreadyRedeemed ? 'border-purple-200 bg-purple-50' : 
+                            userPoints >= reward.costo_puntos ? 'border-emerald-200' : 
+                            'border-gray-200 opacity-70'
+                          }`}
                         >
                           <h4 className="font-bold mb-2">{reward.nombre}</h4>
                           <p className="text-gray-600 text-sm mb-3">{reward.descripcion}</p>
@@ -312,13 +329,22 @@ const RewardsModal = ({ closeModal }) => {
                             )}
                             <div className="flex-1">
                               <div className="text-emerald-600 font-bold mb-1">{reward.costo_puntos} puntos</div>
-                              <button
-                                className={`px-3 py-1 rounded-full text-white text-sm ${userPoints < reward.costo_puntos ? 'bg-gray-400 cursor-not-allowed' : 'bg-emerald-500 hover:bg-emerald-600'}`}
-                                disabled={userPoints < reward.costo_puntos}
-                                onClick={() => handleRedeemReward(reward.id, reward.costo_puntos)}
-                              >
-                                {userPoints < reward.costo_puntos ? 'Puntos insuficientes' : 'Canjear'}
-                              </button>
+                              {alreadyRedeemed ? (
+                                <div className="px-3 py-1 rounded-full text-white text-sm bg-purple-500 inline-block">
+                                  <Check size={16} className="inline mr-1" /> Ya canjeado
+                                </div>
+                              ) : (
+                                <button
+                                  className={`px-3 py-1 rounded-full text-white text-sm ${
+                                    userPoints < reward.costo_puntos ? 'bg-gray-400 cursor-not-allowed' : 
+                                    'bg-emerald-500 hover:bg-emerald-600'
+                                  }`}
+                                  disabled={userPoints < reward.costo_puntos}
+                                  onClick={() => handleRedeemReward(reward.id, reward.costo_puntos)}
+                                >
+                                  {userPoints < reward.costo_puntos ? 'Puntos insuficientes' : 'Canjear'}
+                                </button>
+                              )}
                             </div>
                           </div>
                         </div>

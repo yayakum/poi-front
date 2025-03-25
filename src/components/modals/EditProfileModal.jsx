@@ -140,7 +140,7 @@ const EditProfileModal = ({ closeModal, userId }) => {
       
       // Llamada a la API
       const response = await axios.put(
-        `http://localhost:3000/api/${id}`, 
+        `http://localhost:3000/api/users/${id}`, 
         dataToUpdate,
         { withCredentials: true }
       );
@@ -162,9 +162,11 @@ const EditProfileModal = ({ closeModal, userId }) => {
         
         setSuccess("Perfil actualizado correctamente");
         
-        // Cerrar el modal después de un breve tiempo
+        // Cerrar el modal después de un breve tiempo y recargar la página
         setTimeout(() => {
           closeModal();
+          // Recargamos la página para reflejar los cambios en todos los componentes
+          window.location.reload();
         }, 1500);
       } else {
         setError(response.data.mensaje || "Error al actualizar el perfil");

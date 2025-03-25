@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Paperclip, MapPin, Send, Video, Phone, X } from 'lucide-react';
+import { Paperclip, MapPin, Send, Video, Phone, X, Clock, Check, CheckCheck, File, Image, Film } from 'lucide-react';
 import io from 'socket.io-client';
 import axios from 'axios';
 
@@ -37,15 +37,20 @@ const getAvatarImage = (avatarPath) => {
   return avatarMap[avatarPath] || null;
 };
 
-const MainChat = ({ openModal, simulateIncomingCall, selectedUser: initialSelectedUser, closeChat }) => {
+const MainChat = ({ openModal, initiateCall, selectedUser: initialSelectedUser, closeChat }) => {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  // Agregar estado local para selectedUser
   const [selectedUserState, setSelectedUserState] = useState(initialSelectedUser);
+  const [fileUploading, setFileUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [filePreview, setFilePreview] = useState(null);
+  
   const socketRef = useRef();
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const loggedInUserRef = useRef(JSON.parse(localStorage.getItem('user')));
 
   // Actualizar el estado cuando cambia el prop
   useEffect(() => {
@@ -55,11 +60,11 @@ const MainChat = ({ openModal, simulateIncomingCall, selectedUser: initialSelect
   // Inicializar Socket.IO
   useEffect(() => {
     // Obtener el usuario actual desde localStorage
-    const loggedInUser = JSON.parse(localStorage.getItem('user'));
+    const loggedInUser = loggedInUserRef.current;
     if (!loggedInUser) return;
 
     // Crear conexión con el servidor Socket.IO
-    socketRef.current = io('http://localhost:3000');
+    socketRef.current = io('http://localhost:3000/private');
 
     // Manejar eventos de conexión
     socketRef.current.on('connect', () => {
@@ -79,7 +84,10 @@ const MainChat = ({ openModal, simulateIncomingCall, selectedUser: initialSelect
           text: data.text,
           sent: data.senderId === loggedInUser.id,
           time: new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          sender: data.senderName
+          sender: data.senderName,
+          status: data.status,
+          type: data.type || 'texto',
+          file: data.file
         };
         
         setMessages(prevMessages => {
@@ -89,6 +97,48 @@ const MainChat = ({ openModal, simulateIncomingCall, selectedUser: initialSelect
           }
           return [...prevMessages, newMessage];
         });
+
+        // Si recibimos un mensaje, lo marcamos como leído automáticamente
+        if (!newMessage.sent) {
+          markMessagesAsRead([data.id]);
+        }
+      }
+    });
+
+    // Manejar confirmación de mensaje enviado
+    socketRef.current.on('privateMessageConfirmation', (data) => {
+      setMessages(prevMessages => 
+        prevMessages.map(msg => 
+          msg.id === `temp-${data.id}` || msg.id === data.id 
+            ? { ...msg, id: data.id, status: data.status } 
+            : msg
+        )
+      );
+    });
+
+    // Manejar actualización de mensajes entregados
+    socketRef.current.on('messagesDelivered', (data) => {
+      if (data.messageIds && data.messageIds.length > 0) {
+        setMessages(prevMessages => 
+          prevMessages.map(msg => 
+            data.messageIds.includes(msg.id) 
+              ? { ...msg, status: 'entregado' } 
+              : msg
+          )
+        );
+      }
+    });
+
+    // Manejar actualización de mensajes leídos
+    socketRef.current.on('messagesRead', (data) => {
+      if (data.messageIds && data.messageIds.length > 0) {
+        setMessages(prevMessages => 
+          prevMessages.map(msg => 
+            data.messageIds.includes(msg.id) 
+              ? { ...msg, status: 'leido' } 
+              : msg
+          )
+        );
       }
     });
 
@@ -116,7 +166,7 @@ const MainChat = ({ openModal, simulateIncomingCall, selectedUser: initialSelect
     };
   }, [selectedUserState]); // Añadir selectedUserState como dependencia
 
-  // Auto-scroll al último mensaje - CORREGIDO
+  // Auto-scroll al último mensaje
   useEffect(() => {
     // Solo hacer scroll si hay mensajes
     if (messages.length > 0) {
@@ -131,12 +181,12 @@ const MainChat = ({ openModal, simulateIncomingCall, selectedUser: initialSelect
     }
   }, [messages]);
 
-  // Cargar mensajes desde la API - CORREGIDO
+  // Cargar mensajes desde la API
   useEffect(() => {
     if (selectedUserState) {
       setIsLoading(true);
       setMessages([]); // Limpiar mensajes al cambiar de usuario
-      const loggedInUser = JSON.parse(localStorage.getItem('user'));
+      const loggedInUser = loggedInUserRef.current;
       
       if (!loggedInUser) {
         setIsLoading(false);
@@ -148,8 +198,30 @@ const MainChat = ({ openModal, simulateIncomingCall, selectedUser: initialSelect
         .then(response => {
           // Cargar los mensajes después de un pequeño retraso para permitir que el DOM se actualice
           setTimeout(() => {
-            setMessages(response.data.messages);
+            // Asegurarse de que todos los mensajes tengan un estado
+            const messagesWithStatus = response.data.messages.map(msg => ({
+              ...msg,
+              status: msg.status || (msg.sent ? 'pendiente' : 'leido'),
+              type: msg.type || 'texto',
+              file: msg.attachments && msg.attachments.length > 0 ? {
+                id: msg.attachments[0].id,
+                name: msg.attachments[0].name,
+                url: msg.attachments[0].url,
+                type: msg.attachments[0].type,
+                size: msg.attachments[0].size
+              } : null
+            }));
+            setMessages(messagesWithStatus);
             setIsLoading(false);
+
+            // Marcar como leídos los mensajes recibidos que no lo estén
+            const unreadMessages = messagesWithStatus
+              .filter(msg => !msg.sent && msg.status !== 'leido')
+              .map(msg => msg.id);
+              
+            if (unreadMessages.length > 0) {
+              markMessagesAsRead(unreadMessages);
+            }
           }, 50);
         })
         .catch(error => {
@@ -165,36 +237,169 @@ const MainChat = ({ openModal, simulateIncomingCall, selectedUser: initialSelect
     }
   }, [selectedUserState]);
 
-  const handleSubmit = (e) => {
+  // Función para marcar mensajes como leídos
+  const markMessagesAsRead = (messageIds) => {
+    if (!messageIds || messageIds.length === 0) return;
+    
+    const loggedInUser = loggedInUserRef.current;
+    if (!loggedInUser || !selectedUserState || !socketRef.current) return;
+    
+    socketRef.current.emit('markMessagesAsRead', {
+      userId: loggedInUser.id,
+      senderId: selectedUserState.id,
+      messageIds: messageIds
+    });
+  };
+
+  // Función para manejar la selección de archivos
+  const handleFileSelect = (e) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    const file = files[0]; // Por ahora manejamos un archivo a la vez
+    
+    // Determinar el tipo de archivo
+    let fileType = 'archivo';
+    if (file.type.startsWith('image/')) fileType = 'imagen';
+    if (file.type.startsWith('video/')) fileType = 'video';
+    
+    // Crear objeto de vista previa
+    const fileData = {
+      file: file,
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      fileType: fileType,
+      previewUrl: fileType === 'imagen' ? URL.createObjectURL(file) : null
+    };
+    
+    // Guardar la información del archivo en el estado
+    setSelectedFile(fileData);
+    setFilePreview(fileData);
+    
+    // Limpiar el mensaje de texto si había alguno
+    setMessage('');
+  };
+
+  // Función para manejar el envío de mensajes
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (message.trim() === '') return;
-    
-    const loggedInUser = JSON.parse(localStorage.getItem('user'));
+    const loggedInUser = loggedInUserRef.current;
     if (!loggedInUser || !selectedUserState) return;
     
-    // Preparar el mensaje para enviar
-    const messageData = {
-      senderId: loggedInUser.id,
-      senderName: loggedInUser.nombre,
-      receiverId: selectedUserState.id,
-      text: message
-    };
+    // Si hay un archivo seleccionado, lo enviamos
+    if (selectedFile) {
+      setFileUploading(true);
+      setUploadProgress(0);
+      
+      // Crear un ID temporal para el mensaje
+      const tempId = `temp-${Date.now()}`;
+      
+      // Mostrar mensaje con archivo para dar feedback instantáneo
+      const newMessage = {
+        id: tempId,
+        text: selectedFile.name,
+        sent: true,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        sender: loggedInUser.nombre,
+        status: 'pendiente',
+        type: selectedFile.fileType,
+        file: {
+          name: selectedFile.name,
+          type: selectedFile.type,
+          size: selectedFile.size,
+          url: selectedFile.previewUrl
+        }
+      };
+      
+      setMessages(prev => [...prev, newMessage]);
+      
+      // Crear objeto FormData
+      const formData = new FormData();
+      formData.append('file', selectedFile.file);
+      formData.append('remitente_id', loggedInUser.id);
+      formData.append('destinatario_id', selectedUserState.id);
+      
+      try {
+        const response = await axios.post('http://localhost:3000/api/mensajes/archivo', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          onUploadProgress: (progressEvent) => {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setUploadProgress(percentCompleted);
+          }
+        });
+        
+        // Actualizar el mensaje temporal con la información real
+        const sentMessage = response.data.data;
+        setMessages(prev => prev.map(msg => 
+          msg.id === tempId ? {
+            ...msg,
+            id: sentMessage.id,
+            file: sentMessage.file,
+            status: sentMessage.status
+          } : msg
+        ));
+        
+        // Notificar al servidor de socket sobre el nuevo mensaje con archivo
+        socketRef.current.emit('fileMessageSent', {
+          messageId: sentMessage.id,
+          receiverId: selectedUserState.id
+        });
+        
+      } catch (error) {
+        console.error('Error al subir archivo:', error);
+        // Marcar el mensaje como fallido
+        setMessages(prev => prev.map(msg => 
+          msg.id === tempId ? { ...msg, status: 'error' } : msg
+        ));
+      } finally {
+        setFileUploading(false);
+        setUploadProgress(0);
+        // Limpiar el input de archivos y el estado
+        fileInputRef.current.value = '';
+        setSelectedFile(null);
+        setFilePreview(null);
+      }
+    } 
+    // Si no hay archivo pero hay mensaje de texto, enviamos el mensaje
+    else if (message.trim() !== '') {
+      // Preparar el mensaje para enviar
+      const messageData = {
+        senderId: loggedInUser.id,
+        senderName: loggedInUser.nombre,
+        receiverId: selectedUserState.id,
+        text: message
+      };
+      
+      // Crear un ID temporal para el mensaje
+      const tempId = `temp-${Date.now()}`;
+      
+      // Mostrar mensaje inmediatamente en UI (optimistic UI)
+      const newMessage = {
+        id: tempId,
+        text: message,
+        sent: true,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        sender: loggedInUser.nombre,
+        status: 'pendiente', // Inicialmente pendiente
+        type: 'texto'
+      };
+      
+      setMessages(prev => [...prev, newMessage]);
+      setMessage('');
+      
+      // Emitir mensaje a través de Socket.IO
+      socketRef.current.emit('sendPrivateMessage', messageData);
+    }
+  };
+
+  // Función para iniciar una videollamada
+  const handleInitiateCall = (isVideo = true) => {
+    if (!selectedUserState) return;
     
-    // Mostrar mensaje inmediatamente en UI (optimistic UI)
-    const newMessage = {
-      id: `temp-${Date.now()}`,
-      text: message,
-      sent: true,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      sender: loggedInUser.nombre
-    };
-    
-    setMessages(prev => [...prev, newMessage]);
-    setMessage('');
-    
-    // Emitir mensaje a través de Socket.IO
-    socketRef.current.emit('sendPrivateMessage', messageData);
+    // Usar la función proporcionada por el Dashboard
+    initiateCall(selectedUserState, isVideo);
   };
 
   // Renderiza la imagen de perfil correctamente
@@ -206,6 +411,129 @@ const MainChat = ({ openModal, simulateIncomingCall, selectedUser: initialSelect
     }
     
     return null;
+  };
+
+  // Renderiza el icono de estado de mensaje
+  const renderMessageStatus = (status) => {
+    switch (status) {
+      case 'pendiente':
+        return <Clock size={14} className="text-gray-400" />;
+      case 'entregado':
+        return <Check size={14} className="text-gray-400" />;
+      case 'leido':
+        return <CheckCheck size={14} className="text-blue-500" />;
+      case 'error':
+        return <X size={14} className="text-red-500" />;
+      default:
+        return <Clock size={14} className="text-gray-400" />;
+    }
+  };
+
+  // Renderiza el contenido del mensaje según su tipo
+  const renderMessageContent = (message) => {
+    if (!message.type || message.type === 'texto') {
+      // Si es un mensaje de texto normal
+      return <div>{message.text}</div>;
+    }
+    
+    // Si es un tipo de archivo pero no tenemos información de archivo
+    if (!message.file) return <div>{message.text}</div>;
+    
+    // Según el tipo de archivo
+    switch (message.type) {
+      case 'imagen':
+        return (
+          <div className="message-content">
+            <div className="mb-1 flex items-center">
+              <Image size={16} className="mr-1 text-blue-500" />
+              <span className="text-sm text-gray-600">{message.file.name}</span>
+            </div>
+            <img 
+              src={message.file.url} 
+              alt={message.file.name} 
+              className="max-w-full rounded-md max-h-60 object-contain cursor-pointer"
+              onClick={() => window.open(message.file.url, '_blank')}
+            />
+          </div>
+        );
+      case 'video':
+        return (
+          <div className="message-content">
+            <div className="mb-1 flex items-center">
+              <Film size={16} className="mr-1 text-blue-500" />
+              <span className="text-sm text-gray-600">{message.file.name}</span>
+            </div>
+            <video 
+              src={message.file.url} 
+              controls 
+              className="max-w-full rounded-md max-h-60" 
+            />
+          </div>
+        );
+      case 'archivo':
+      default:
+        return (
+          <div className="file-attachment p-3 bg-gray-50 rounded-md flex items-center">
+            <File size={24} className="mr-3 text-blue-500" />
+            <div className="flex-1">
+              <div className="text-sm font-medium">{message.file.name}</div>
+              <div className="text-xs text-gray-500">
+                {(message.file.size / 1024).toFixed(1)} KB
+              </div>
+            </div>
+            <a 
+              href={message.file.url} 
+              download={message.file.name}
+              className="ml-2 p-2 rounded-full hover:bg-gray-200"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-600">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+            </a>
+          </div>
+        );
+    }
+  };
+
+  // Componente para mostrar la vista previa del archivo seleccionado
+  const FilePreviewComponent = ({ filePreview, onCancel }) => {
+    if (!filePreview) return null;
+    
+    return (
+      <div className="bg-gray-200 p-3 border-t border-gray-300">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            {filePreview.fileType === 'imagen' && <Image size={20} className="mr-2 text-blue-500" />}
+            {filePreview.fileType === 'video' && <Film size={20} className="mr-2 text-blue-500" />}
+            {filePreview.fileType === 'archivo' && <File size={20} className="mr-2 text-blue-500" />}
+            <div>
+              <div className="font-medium text-sm">{filePreview.name}</div>
+              <div className="text-xs text-gray-500">{(filePreview.size / 1024).toFixed(1)} KB</div>
+            </div>
+          </div>
+          <button 
+            onClick={onCancel}
+            className="p-1 rounded-full hover:bg-gray-300"
+          >
+            <X size={16} className="text-gray-600" />
+          </button>
+        </div>
+        
+        {filePreview.fileType === 'imagen' && filePreview.previewUrl && (
+          <div className="mt-2 max-h-40 overflow-hidden">
+            <img 
+              src={filePreview.previewUrl} 
+              alt="Vista previa" 
+              className="max-w-full max-h-40 object-contain mx-auto rounded"
+            />
+          </div>
+        )}
+      </div>
+    );
   };
 
   if (!selectedUserState) {
@@ -240,15 +568,10 @@ const MainChat = ({ openModal, simulateIncomingCall, selectedUser: initialSelect
         <div className="ml-auto flex items-center gap-3">
           <button 
             className="p-2 rounded-full hover:bg-gray-200"
-            onClick={() => openModal('videoCall', selectedUserState)}
+            onClick={() => handleInitiateCall(true)}
+            title="Videollamada"
           >
             <Video size={20} className="text-emerald-600" />
-          </button>
-          <button 
-            className="p-2 rounded-full hover:bg-gray-200"
-            onClick={simulateIncomingCall}
-          >
-            <Phone size={20} className="text-emerald-600" />
           </button>
           <button 
             className="p-2 rounded-full hover:bg-gray-200"
@@ -290,8 +613,15 @@ const MainChat = ({ openModal, simulateIncomingCall, selectedUser: initialSelect
                   <div className="text-xs text-gray-500">{message.sender}</div>
                 </div>
               )}
-              <div>{message.text}</div>
-              <div className="text-xs text-gray-500 text-right mt-1">{message.time}</div>
+              {renderMessageContent(message)}
+              <div className="flex justify-end items-center gap-1 mt-1">
+                <div className="text-xs text-gray-500">{message.time}</div>
+                {message.sent && (
+                  <div className="ml-1">
+                    {renderMessageStatus(message.status)}
+                  </div>
+                )}
+              </div>
             </div>
           ))
         )}
@@ -299,12 +629,38 @@ const MainChat = ({ openModal, simulateIncomingCall, selectedUser: initialSelect
       </div>
       
       <div className="bg-gray-100 p-4">
+        {filePreview && (
+          <FilePreviewComponent 
+            filePreview={filePreview} 
+            onCancel={() => {
+              setSelectedFile(null);
+              setFilePreview(null);
+              fileInputRef.current.value = '';
+            }}
+          />
+        )}
+        
+        {fileUploading && (
+          <div className="bg-gray-200 p-2 mb-2 rounded">
+            <div className="flex items-center">
+              <div className="mr-2 text-sm">Subiendo archivo...</div>
+              <div className="w-full bg-gray-300 rounded-full h-2.5">
+                <div 
+                  className="bg-emerald-600 h-2.5 rounded-full" 
+                  style={{ width: `${uploadProgress}%` }}
+                ></div>
+              </div>
+              <div className="ml-2 text-sm">{uploadProgress}%</div>
+            </div>
+          </div>
+        )}
+        
         <form onSubmit={handleSubmit} className="flex items-center gap-3">
           <input 
             type="file" 
-            multiple 
             className="hidden" 
             ref={fileInputRef}
+            onChange={handleFileSelect}
           />
           <button 
             type="button" 
@@ -318,17 +674,18 @@ const MainChat = ({ openModal, simulateIncomingCall, selectedUser: initialSelect
           </button>
           <input 
             type="text"
-            placeholder="Escribe un mensaje aquí" 
+            placeholder={selectedFile ? "Presiona enviar para compartir archivo" : "Escribe un mensaje aquí"} 
             className="flex-1 py-3 px-4 rounded-lg border-none outline-none text-sm"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
+            disabled={selectedFile !== null}
           />
           <button 
             type="submit" 
             className={`p-2 rounded-full hover:bg-gray-200 ${
-              !message.trim() ? 'opacity-50 cursor-not-allowed' : ''
+              (!message.trim() && !selectedFile) ? 'opacity-50 cursor-not-allowed' : ''
             }`}
-            disabled={!message.trim()}
+            disabled={!message.trim() && !selectedFile}
           >
             <Send size={20} className="text-emerald-600" />
           </button>

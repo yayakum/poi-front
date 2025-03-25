@@ -96,7 +96,7 @@ const ChatList = ({ setSelectedUser, setSelectedGroup }) => {
       if (socketInitialized.current) return;
       
       try {
-        socketRef.current = io('http://localhost:3000');
+        socketRef.current = io('http://localhost:3000/private');
         
         const user = JSON.parse(localStorage.getItem('user'));
         if (user && user.id) {

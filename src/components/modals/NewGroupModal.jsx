@@ -2,6 +2,43 @@ import React, { useState, useEffect } from 'react';
 import { X, Search } from 'lucide-react';
 import axios from 'axios';
 
+// Importamos las imágenes de avatares
+import BMO from '../../assets/BMO.jpg';
+import BonnibelBubblegum from '../../assets/BonnibelBubblegum.jpg';
+import Finn from '../../assets/Finn.jpg';
+import FlamePrincess from '../../assets/FlamePrincess.jpg';
+import Gunter from '../../assets/Gunter.jpg';
+import IceKing from '../../assets/IceKing.jpg';
+import Jake from '../../assets/Jake.jpg';
+import LadyRainicorn from '../../assets/LadyRainicorn.jpg';
+import Lemongrab from '../../assets/Lemongrab.jpg';
+import LumpySpacePrincess from '../../assets/LumpySpacePrincess.jpg';
+import Marcelline from '../../assets/Marcelline.jpg';
+
+// Definimos el objeto de avatares
+const avatarOptions = [
+  { src: BonnibelBubblegum, name: 'assets/BonnibelBubblegum.jpg' },
+  { src: Finn, name: 'assets/Finn.jpg' },
+  { src: Jake, name: 'assets/Jake.jpg' },
+  { src: Marcelline, name: 'assets/Marcelline.jpg' },
+  { src: FlamePrincess, name: 'assets/FlamePrincess.jpg' },
+  { src: BMO, name: 'assets/BMO.jpg' },
+  { src: Gunter, name: 'assets/Gunter.jpg' },
+  { src: IceKing, name: 'assets/IceKing.jpg' },
+  { src: LadyRainicorn, name: 'assets/LadyRainicorn.jpg' },
+  { src: Lemongrab, name: 'assets/Lemongrab.jpg' },
+  { src: LumpySpacePrincess, name: 'assets/LumpySpacePrincess.jpg' }
+];
+
+// Función para obtener la imagen del avatar
+const getAvatarSrc = (avatarName) => {
+  if (avatarName) {
+    const avatar = avatarOptions.find(opt => opt.name === avatarName);
+    return avatar ? avatar.src : null;
+  }
+  return null;
+};
+
 const NewGroupModal = ({ closeModal, onGroupCreated }) => {
   const [groupName, setGroupName] = useState('');
   const [description, setDescription] = useState('');
@@ -86,6 +123,11 @@ const NewGroupModal = ({ closeModal, onGroupCreated }) => {
         
         alert('Grupo creado exitosamente');
         closeModal();
+        
+        // Recargar la página para reflejar los cambios
+        setTimeout(() => {
+          window.location.reload();
+        }, 500);
       } else {
         alert('Error al crear el grupo: ' + (response.data?.mensaje || 'Error desconocido'));
       }
@@ -101,8 +143,18 @@ const NewGroupModal = ({ closeModal, onGroupCreated }) => {
     contact.nombre.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Manejar el cierre del modal al hacer clic fuera
+  const handleOverlayClick = (e) => {
+    if (e.target.classList.contains('modal-overlay')) {
+      closeModal();
+    }
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 modal-overlay">
+    <div 
+      className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 modal-overlay"
+      onClick={handleOverlayClick}
+    >
       <div className="bg-white p-5 rounded-lg w-11/12 max-w-2xl">
         <div className="flex justify-between items-center mb-5">
           <h2 className="text-xl font-bold">Crear Nuevo Grupo</h2>
@@ -165,7 +217,7 @@ const NewGroupModal = ({ closeModal, onGroupCreated }) => {
                     <div className="w-12 h-12 rounded-full bg-emerald-700 mr-4 flex items-center justify-center overflow-hidden">
                       {contact.foto_perfil ? (
                         <img 
-                          src={contact.foto_perfil} 
+                          src={getAvatarSrc(contact.foto_perfil)} 
                           alt={contact.nombre} 
                           className="w-full h-full object-cover"
                         />

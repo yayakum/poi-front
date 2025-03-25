@@ -1,0 +1,3 @@
+ubicacion
+hasheo de mensajes con opcion de switch(habilitar/deshabilitar)
+indicador de mensajes no leidos en ChatList
