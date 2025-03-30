@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { X, Edit, Check, Lock } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Edit, Check, Lock, CheckCircle } from 'lucide-react';
 import axios from 'axios';
+import io from 'socket.io-client';
 
 // Importamos nuestra configuración centralizada de avatares
 import { DEFAULT_AVATARS, REWARD_AVATARS, getAvatarByName, getAllAvatars } from '../../config/AvatarConfig.js';
@@ -20,9 +21,22 @@ const EditProfileModal = ({ closeModal, userId }) => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [redeemedRewards, setRedeemedRewards] = useState([]);
+  const [validationErrors, setValidationErrors] = useState({});
+  const socketRef = useRef(null);
   
   // Obtener todos los avatares disponibles considerando las recompensas
   const allAvatars = getAllAvatars(redeemedRewards);
+
+  // Inicializar socket para recibir actualizaciones en tiempo real
+  useEffect(() => {
+    socketRef.current = io('http://localhost:3000/private');
+    
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+    };
+  }, []);
 
   // Función para cargar los datos del usuario desde la API
   const fetchUserData = async () => {
@@ -90,12 +104,53 @@ const EditProfileModal = ({ closeModal, userId }) => {
     fetchUserData();
   }, [userId]);
 
+  // Efecto para cerrar el modal después de una actualización exitosa
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => {
+        closeModal();
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [success, closeModal]);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    
+    // Limpiar errores específicos al editar un campo
+    if (validationErrors[name]) {
+      setValidationErrors({
+        ...validationErrors,
+        [name]: null
+      });
+    }
+    
     setUserData({
       ...userData,
       [name]: value
     });
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    
+    // Validar nombre (mínimo 5 caracteres)
+    if (userData.nombre.trim().length < 5) {
+      errors.nombre = "El nombre debe tener al menos 5 caracteres";
+    }
+    
+    // Validar contraseña si se proporciona
+    if (userData.password) {
+      if (userData.password.length < 6) {
+        errors.password = "La contraseña debe tener al menos 6 caracteres";
+      } else if (!/\d/.test(userData.password)) {
+        errors.password = "La contraseña debe contener al menos un número";
+      }
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0; // Devuelve true si no hay errores
   };
 
   const selectAvatar = (avatar) => {
@@ -114,6 +169,12 @@ const EditProfileModal = ({ closeModal, userId }) => {
     e.preventDefault();
     setError("");
     setSuccess("");
+    
+    // Validar el formulario antes de enviarlo
+    if (!validateForm()) {
+      return; // No continuar si hay errores de validación
+    }
+    
     setIsSubmitting(true);
     
     try {
@@ -162,12 +223,7 @@ const EditProfileModal = ({ closeModal, userId }) => {
         
         setSuccess("Perfil actualizado correctamente");
         
-        // Cerrar el modal después de un breve tiempo y recargar la página
-        setTimeout(() => {
-          closeModal();
-          // Recargamos la página para reflejar los cambios en todos los componentes
-          window.location.reload();
-        }, 1500);
+        // No recargamos la página, los cambios se reflejarán a través de los eventos de socket
       } else {
         setError(response.data.mensaje || "Error al actualizar el perfil");
       }
@@ -289,9 +345,13 @@ const EditProfileModal = ({ closeModal, userId }) => {
                   name="nombre"
                   value={userData.nombre}
                   onChange={handleInputChange}
-                  className="w-full p-2 border border-gray-200 rounded text-sm"
+                  className={`w-full p-2 border ${validationErrors.nombre ? 'border-red-500' : 'border-gray-200'} rounded text-sm`}
                   placeholder="Tu nombre"
                 />
+                {validationErrors.nombre && (
+                  <p className="text-xs text-red-500 mt-1">{validationErrors.nombre}</p>
+                )}
+                <p className="text-xs text-gray-500 mt-1">Mínimo 5 caracteres</p>
               </div>
               
               <div className="mb-4">
@@ -325,9 +385,12 @@ const EditProfileModal = ({ closeModal, userId }) => {
                   name="password"
                   value={userData.password}
                   onChange={handleInputChange}
-                  className="w-full p-2 border border-gray-200 rounded text-sm"
+                  className={`w-full p-2 border ${validationErrors.password ? 'border-red-500' : 'border-gray-200'} rounded text-sm`}
                   placeholder="Deja en blanco para mantener tu contraseña actual"
                 />
+                {validationErrors.password && (
+                  <p className="text-xs text-red-500 mt-1">{validationErrors.password}</p>
+                )}
                 <p className="text-xs text-gray-500 mt-1">Al menos 6 caracteres, incluyendo un número</p>
               </div>
               
@@ -338,8 +401,12 @@ const EditProfileModal = ({ closeModal, userId }) => {
               )}
               
               {success && (
-                <div className="mb-4 p-2 bg-green-100 border border-green-300 text-green-800 rounded">
-                  {success}
+                <div className="mb-4 bg-emerald-100 border-l-4 border-emerald-500 p-4 rounded flex items-center animate-fadeIn">
+                  <CheckCircle size={24} className="text-emerald-500 mr-2" />
+                  <div>
+                    <p className="font-medium text-emerald-700">¡Perfil actualizado con éxito!</p>
+                    <p className="text-sm text-emerald-600">Los cambios se aplicarán inmediatamente.</p>
+                  </div>
                 </div>
               )}
             </form>
@@ -349,10 +416,10 @@ const EditProfileModal = ({ closeModal, userId }) => {
         <div className="p-4 border-t mt-auto">
           <button 
             onClick={handleSubmit}
-            disabled={isSubmitting || isLoading}
-            className={`w-full ${isSubmitting || isLoading ? 'bg-gray-400' : 'bg-emerald-600 hover:bg-emerald-700'} text-white py-3 px-5 rounded text-sm transition-colors`}
+            disabled={isSubmitting || isLoading || success}
+            className={`w-full ${isSubmitting || isLoading || success ? 'bg-gray-400' : 'bg-emerald-600 hover:bg-emerald-700'} text-white py-3 px-5 rounded text-sm transition-colors`}
           >
-            {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
+            {isSubmitting ? 'Guardando...' : success ? 'Guardado' : 'Guardar Cambios'}
           </button>
         </div>
       </div>

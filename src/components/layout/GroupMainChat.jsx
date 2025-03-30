@@ -90,6 +90,8 @@ const GroupChat = ({ openModal, selectedGroup, closeChat }) => {
             sent: data.senderId === loggedInUser.id,
             time: new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             sender: data.senderName,
+            senderName: data.senderName,
+            senderId: data.senderId,
             senderImage: data.senderImage,
             type: data.type || 'texto',
             status: data.status || 'entregado',
@@ -117,12 +119,34 @@ const GroupChat = ({ openModal, selectedGroup, closeChat }) => {
               return {
                 ...msg,
                 id: data.id, // Reemplazar el ID temporal con el ID real
-                status: data.status || 'entregado'
+                status: data.status || 'pendiente'
               };
             }
             return msg;
           });
         });
+      }
+    });
+
+    // Nuevo manejador para actualizaciones de estado de mensajes individuales
+    socketRef.current.on('messageStatusUpdate', (data) => {
+      if (data.groupId === selectedGroup.id) {
+        setMessages(prevMessages => prevMessages.map(msg => 
+          msg.id === data.messageId 
+            ? { ...msg, status: data.status } 
+            : msg
+        ));
+      }
+    });
+
+    // Nuevo manejador para actualizaciones múltiples de estado de mensajes
+    socketRef.current.on('messagesStatusUpdate', (data) => {
+      if (data.groupId === selectedGroup.id) {
+        setMessages(prevMessages => prevMessages.map(msg => 
+          data.messageIds.includes(msg.id) 
+            ? { ...msg, status: data.status } 
+            : msg
+        ));
       }
     });
 
@@ -196,8 +220,13 @@ const GroupChat = ({ openModal, selectedGroup, closeChat }) => {
             ...msg,
             sent: msg.senderId === loggedInUser.id,
             type: msg.type || 'texto',
-            status: msg.status || 'entregado'
+            status: msg.status || 'pendiente'
           })));
+
+          // Si hay mensajes no leídos, marcarlos como leídos
+          if (response.data.unreadMessageIds && response.data.unreadMessageIds.length > 0) {
+            markMessagesAsRead(response.data.unreadMessageIds);
+          }
         })
         .catch(error => {
           console.error('Error cargando mensajes:', error);
@@ -213,6 +242,38 @@ const GroupChat = ({ openModal, selectedGroup, closeChat }) => {
       });
     }
   }, [selectedGroup]);
+
+  // Función para marcar mensajes como leídos
+  const markMessagesAsRead = (messageIds) => {
+    if (!messageIds || messageIds.length === 0 || !selectedGroup) return;
+    
+    const loggedInUser = JSON.parse(localStorage.getItem('user'));
+    if (!loggedInUser) return;
+
+    // Evitar marcar mensajes enviados por el usuario actual
+    const filteredIds = messageIds.filter(id => {
+      const message = messages.find(msg => msg.id === id);
+      return message && message.senderId !== loggedInUser.id;
+    });
+
+    if (filteredIds.length === 0) return;
+
+    // Notificar al servidor sobre los mensajes leídos
+    socketRef.current.emit('markGroupMessagesAsRead', {
+      userId: loggedInUser.id,
+      groupId: selectedGroup.id,
+      messageIds: filteredIds
+    });
+
+    // También enviar solicitud HTTP para respaldo/sincronización
+    axios.post('http://localhost:3000/api/messages/grupo/read', {
+      userId: loggedInUser.id,
+      groupId: selectedGroup.id,
+      messageIds: filteredIds
+    }).catch(error => {
+      console.error('Error al marcar mensajes como leídos:', error);
+    });
+  };
 
   // Función para manejar la selección de archivos
   const handleFileSelect = (e) => {
@@ -298,6 +359,18 @@ const GroupChat = ({ openModal, selectedGroup, closeChat }) => {
         
         // Actualizar el mensaje temporal con la información real
         const sentMessage = response.data.data;
+        
+        // Asegurarnos de que la URL sea completa con el servidor base
+        if (sentMessage.file && sentMessage.file.url) {
+          const serverUrl = 'http://localhost:3000'; // URL base del servidor
+          
+          // Si la URL no comienza con http, agregarle el servidor base
+          if (!sentMessage.file.url.startsWith('http')) {
+            sentMessage.file.url = `${serverUrl}${sentMessage.file.url}`;
+          }
+        }
+        
+        // Actualizar el mensaje en el estado local con la URL completa
         setMessages(prev => prev.map(msg => 
           msg.id === tempId ? {
             ...msg,
@@ -495,17 +568,11 @@ const GroupChat = ({ openModal, selectedGroup, closeChat }) => {
 
       // Filtrar mensajes recibidos (no enviados por el usuario actual) y no marcados como leídos
       const unreadMessageIds = messages
-        .filter(msg => !msg.sent && msg.status !== 'leido' && !msg.id.toString().startsWith('temp-'))
+        .filter(msg => !msg.sent && msg.senderId !== loggedInUser.id && !msg.id.toString().startsWith('temp-'))
         .map(msg => msg.id);
 
       if (unreadMessageIds.length > 0) {
-        axios.post('http://localhost:3000/api/messages/grupo/read', {
-          userId: loggedInUser.id,
-          groupId: selectedGroup.id,
-          messageIds: unreadMessageIds
-        }).catch(error => {
-          console.error('Error al marcar mensajes como leídos:', error);
-        });
+        markMessagesAsRead(unreadMessageIds);
       }
     }
   }, [messages, selectedGroup]);

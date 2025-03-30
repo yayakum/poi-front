@@ -440,7 +440,7 @@ const Dashboard = () => {
   }, []);
 
   return (
-    <div className="bg-gray-200 h-screen flex items-center justify-center">
+    <div className="bg-linear-to-b from-gray-300 via-gray-400 to-gray-600 h-screen flex items-center justify-center">
       <div className="w-11/12 max-w-7xl h-[90vh] bg-white flex shadow-md">
         <Sidebar 
           openModal={openModal} 

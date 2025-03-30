@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { X, Search } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Search, CheckCircle, Users } from 'lucide-react';
 import axios from 'axios';
+import io from 'socket.io-client';
 
 // Importamos las imágenes de avatares
 import BMO from '../../assets/BMO.jpg';
@@ -30,14 +31,8 @@ const avatarOptions = [
   { src: LumpySpacePrincess, name: 'assets/LumpySpacePrincess.jpg' }
 ];
 
-// Función para obtener la imagen del avatar
-const getAvatarSrc = (avatarName) => {
-  if (avatarName) {
-    const avatar = avatarOptions.find(opt => opt.name === avatarName);
-    return avatar ? avatar.src : null;
-  }
-  return null;
-};
+// Crear un evento personalizado para la creación de grupos
+// const newGroupEvent = new CustomEvent('newGroupCreated');
 
 const NewGroupModal = ({ closeModal, onGroupCreated }) => {
   const [groupName, setGroupName] = useState('');
@@ -49,6 +44,38 @@ const NewGroupModal = ({ closeModal, onGroupCreated }) => {
   const [selectedContacts, setSelectedContacts] = useState([]);
   const [loggedInUser, setLoggedInUser] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({});
+  const [createdGroup, setCreatedGroup] = useState(null);
+  const socketRef = useRef(null);
+  const socketInitialized = useRef(false);
+
+  // Función para obtener la imagen del avatar
+  const getAvatarSrc = (avatarName) => {
+    if (avatarName) {
+      const avatar = avatarOptions.find(opt => opt.name === avatarName);
+      return avatar ? avatar.src : null;
+    }
+    return null;
+  };
+
+  // Efecto para cerrar el modal automáticamente después de mostrar el mensaje de éxito
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => {
+        // Antes de cerrar el modal, disparar evento para actualizar la lista de grupos
+        if (createdGroup) {
+          // Usar evento personalizado para notificar sobre el nuevo grupo
+          window.dispatchEvent(new CustomEvent('newGroupCreated', { 
+            detail: { group: createdGroup }
+          }));
+        }
+        closeModal();
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [success, closeModal, createdGroup]);
 
   useEffect(() => {
     const fetchContacts = async () => {
@@ -73,6 +100,48 @@ const NewGroupModal = ({ closeModal, onGroupCreated }) => {
     };
 
     fetchContacts();
+
+    // Inicializar Socket.IO para actualizaciones en tiempo real
+    const initSocket = () => {
+      if (socketInitialized.current) return;
+      
+      try {
+        socketRef.current = io('http://localhost:3000/private');
+        
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (user && user.id) {
+          socketRef.current.on('connect', () => {
+            console.log('NewGroupModal conectado a Socket.IO');
+            socketRef.current.emit('authenticate', user.id);
+            socketInitialized.current = true;
+          });
+          
+          // Escuchar cambios de estado de usuarios
+          socketRef.current.on('userStatusChanged', ({ userId, status }) => {
+            console.log(`Usuario ${userId} cambió estado a ${status} en NewGroupModal`);
+            setContacts(prevContacts => {
+              return prevContacts.map(contact => 
+                contact.id === parseInt(userId) ? { ...contact, estado: status } : contact
+              );
+            });
+          });
+        }
+      } catch (socketError) {
+        console.error('Error al inicializar socket en NewGroupModal:', socketError);
+      }
+    };
+    
+    if (!socketInitialized.current) {
+      initSocket();
+    }
+    
+    // Limpiar cuando se desmonte el componente
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketInitialized.current = false;
+      }
+    };
   }, []);
 
   const handleContactSelection = (contactId) => {
@@ -85,20 +154,40 @@ const NewGroupModal = ({ closeModal, onGroupCreated }) => {
     });
   };
 
-  const handleCreateGroup = async () => {
+  // Validación del formulario
+  const validateForm = () => {
+    const errors = {};
+    
+    // Validar nombre del grupo (no puede estar vacío)
     if (!groupName.trim()) {
-      alert('Por favor, ingresa un nombre para el grupo');
-      return;
+      errors.groupName = "El nombre del grupo no puede estar vacío";
+    } else if (groupName.trim().length < 3) {
+      errors.groupName = "El nombre debe tener al menos 3 caracteres";
     }
+    
+    // Validar selección de participantes
+    if (selectedContacts.length < 2) {
+      errors.participants = "Debes seleccionar al menos 2 participantes";
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0; // Devuelve true si no hay errores
+  };
 
-    if (selectedContacts.length === 0) {
-      alert('Por favor, selecciona al menos un participante');
+  const handleCreateGroup = async (e) => {
+    e.preventDefault();
+    
+    // Limpiar errores previos
+    setError(null);
+    
+    // Validar formulario
+    if (!validateForm()) {
       return;
     }
 
     // Verificar que el usuario esté logueado
     if (!loggedInUser || !loggedInUser.id) {
-      alert('Debes iniciar sesión para crear un grupo');
+      setError('Debes iniciar sesión para crear un grupo');
       return;
     }
 
@@ -110,31 +199,28 @@ const NewGroupModal = ({ closeModal, onGroupCreated }) => {
         nombre: groupName,
         descripcion: description,
         creador_id: loggedInUser.id,
-        participantes: selectedContacts
+        participantes: selectedContacts,
       });
       
-      setIsSubmitting(false);
-      
       if (response.data && response.data.ok) {
+        // Guardar el grupo creado para usarlo en el evento personalizado
+        setCreatedGroup(response.data.grupo);
+        
         // Si se proporciona la función callback, la llamamos con el grupo creado
         if (onGroupCreated && typeof onGroupCreated === 'function') {
           onGroupCreated(response.data.grupo);
         }
         
-        alert('Grupo creado exitosamente');
-        closeModal();
-        
-        // Recargar la página para reflejar los cambios
-        setTimeout(() => {
-          window.location.reload();
-        }, 500);
+        // Mostrar mensaje de éxito
+        setSuccess(true);
       } else {
-        alert('Error al crear el grupo: ' + (response.data?.mensaje || 'Error desconocido'));
+        setError('Error al crear el grupo: ' + (response.data?.mensaje || 'Error desconocido'));
       }
     } catch (err) {
-      setIsSubmitting(false);
       console.error('Error al crear grupo:', err);
-      alert('Error al crear el grupo: ' + (err.response?.data?.mensaje || err.message || 'Error desconocido'));
+      setError(err.response?.data?.mensaje || err.message || 'Error desconocido');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -164,107 +250,166 @@ const NewGroupModal = ({ closeModal, onGroupCreated }) => {
             onClick={closeModal} 
           />
         </div>
-        <div className="mb-4">
-          <label className="block mb-1 text-emerald-600">Nombre del Grupo</label>
-          <input 
-            type="text" 
-            placeholder="Ej: Familia" 
-            className="w-full p-2 border border-gray-200 rounded text-sm"
-            value={groupName}
-            onChange={(e) => setGroupName(e.target.value)}
-          />
-        </div>
-        <div className="mb-4">
-          <label className="block mb-1 text-emerald-600">Descripción (opcional)</label>
-          <textarea 
-            placeholder="Añade una descripción del grupo" 
-            className="w-full p-2 border border-gray-200 rounded text-sm h-20 resize-y"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          ></textarea>
-        </div>
         
-        <div className="mb-4">
-          <label className="block mb-1 text-emerald-600">Agregar participantes</label>
-          <div className="bg-gray-100 py-2 px-4 rounded-lg flex items-center mb-4">
-            <Search size={16} className="text-gray-500" />
-            <input 
-              type="text" 
-              placeholder="Buscar contactos" 
-              className="w-full border-none bg-transparent outline-none ml-3 text-sm"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+        {success ? (
+          <div className="mb-4 bg-emerald-100 border-l-4 border-emerald-500 p-4 rounded flex items-center animate-fadeIn">
+            <CheckCircle size={24} className="text-emerald-500 mr-2" />
+            <div>
+              <p className="font-medium text-emerald-700">¡Grupo creado con éxito!</p>
+              <p className="text-sm text-emerald-600">El grupo ha sido creado y los participantes han sido notificados.</p>
+            </div>
           </div>
-          
-          {loading ? (
-            <div className="text-center p-4">Cargando contactos...</div>
-          ) : error ? (
-            <div className="text-center p-4 text-red-500">{error}</div>
-          ) : (
-            <div className="max-h-60 overflow-y-auto">
-              {filteredContacts.length === 0 ? (
-                <div className="text-center p-4 text-gray-500">
-                  No se encontraron contactos
-                </div>
+        ) : (
+          <form onSubmit={handleCreateGroup}>
+            <div className="mb-4">
+              <label className="block mb-1 text-emerald-600">Nombre del Grupo</label>
+              <input 
+                type="text" 
+                placeholder="Ej: Familia" 
+                className={`w-full p-2 border ${validationErrors.groupName ? 'border-red-500' : 'border-gray-200'} rounded text-sm`}
+                value={groupName}
+                onChange={(e) => {
+                  setGroupName(e.target.value);
+                  if (validationErrors.groupName) {
+                    setValidationErrors({...validationErrors, groupName: null});
+                  }
+                }}
+                disabled={isSubmitting || success}
+              />
+              {validationErrors.groupName && (
+                <p className="text-xs text-red-500 mt-1">{validationErrors.groupName}</p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">Mínimo 3 caracteres</p>
+            </div>
+            
+            <div className="mb-4">
+              <label className="block mb-1 text-emerald-600">Descripción (opcional)</label>
+              <textarea 
+                placeholder="Añade una descripción del grupo" 
+                className="w-full p-2 border border-gray-200 rounded text-sm h-20 resize-y"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                disabled={isSubmitting || success}
+              ></textarea>
+            </div>
+            
+            <div className="mb-4">
+              <label className="block mb-1 text-emerald-600">Agregar participantes</label>
+              <div className="bg-gray-100 py-2 px-4 rounded-lg flex items-center mb-4">
+                <Search size={16} className="text-gray-500" />
+                <input 
+                  type="text" 
+                  placeholder="Buscar contactos" 
+                  className="w-full border-none bg-transparent outline-none ml-3 text-sm"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  disabled={isSubmitting || success}
+                />
+              </div>
+              
+              {validationErrors.participants && (
+                <p className="text-xs text-red-500 mb-2">{validationErrors.participants}</p>
+              )}
+              
+              {loading ? (
+                <div className="text-center p-4">Cargando contactos...</div>
+              ) : error ? (
+                <div className="text-center p-4 text-red-500">{error}</div>
               ) : (
-                filteredContacts.map((contact) => (
-                  <div 
-                    key={contact.id}
-                    className="flex items-center p-3 border-b border-gray-100 cursor-pointer"
-                    onClick={() => handleContactSelection(contact.id)}
-                  >
-                    <div className="w-12 h-12 rounded-full bg-emerald-700 mr-4 flex items-center justify-center overflow-hidden">
-                      {contact.foto_perfil ? (
-                        <img 
-                          src={getAvatarSrc(contact.foto_perfil)} 
-                          alt={contact.nombre} 
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-white font-bold">
-                          {contact.nombre.charAt(0).toUpperCase()}
-                        </span>
-                      )}
+                <div className="max-h-60 overflow-y-auto">
+                  {filteredContacts.length === 0 ? (
+                    <div className="text-center p-4 text-gray-500">
+                      No se encontraron contactos
                     </div>
-                    <div className="flex-1">
-                      <div className="font-medium">{contact.nombre}</div>
-                      <div className="text-xs text-gray-500">
-                        {contact.estado === 'online' ? (
-                          <span className="text-green-500">● En línea</span>
-                        ) : (
-                          <span className="text-gray-400">● Desconectado</span>
-                        )}
-                      </div>
-                    </div>
-                    <input 
-                      type="checkbox" 
-                      className="w-5 h-5 accent-emerald-600"
-                      checked={selectedContacts.includes(contact.id)}
-                      onChange={(e) => {
-                        // Esto evita la propagación del evento al div padre
-                        e.stopPropagation();
-                        handleContactSelection(contact.id);
-                      }}
-                    />
-                  </div>
-                ))
+                  ) : (
+                    filteredContacts.map((contact) => {
+                      const contactAvatarSrc = getAvatarSrc(contact.foto_perfil);
+                      
+                      return (
+                        <div 
+                          key={contact.id}
+                          className="flex items-center p-3 border-b border-gray-100 cursor-pointer"
+                          onClick={() => {
+                            if (!isSubmitting && !success) {
+                              handleContactSelection(contact.id);
+                              if (validationErrors.participants) {
+                                setValidationErrors({...validationErrors, participants: null});
+                              }
+                            }
+                          }}
+                        >
+                          <div className="relative">
+                            <div className="w-12 h-12 rounded-full bg-emerald-700 flex items-center justify-center overflow-hidden">
+                              {contactAvatarSrc ? (
+                                <img 
+                                  src={contactAvatarSrc} 
+                                  alt={contact.nombre} 
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <span className="text-white font-bold">
+                                  {contact.nombre.charAt(0).toUpperCase()}
+                                </span>
+                              )}
+                            </div>
+                            {/* Indicador de estado */}
+                            <span 
+                              className={`absolute bottom-0 right-0 w-3 h-3 rounded-full ${contact.estado === 'online' ? 'bg-green-500' : 'bg-gray-400'} border-2 border-white`}
+                            ></span>
+                          </div>
+                          <div className="flex-1 ml-4">
+                            <div className="font-medium">{contact.nombre}</div>
+                            <div className="text-xs text-gray-500">
+                              {contact.estado === 'online' ? (
+                                <span className="text-green-500">● En línea</span>
+                              ) : (
+                                <span className="text-gray-400">● Desconectado</span>
+                              )}
+                            </div>
+                          </div>
+                          <input 
+                            type="checkbox" 
+                            className="w-5 h-5 accent-emerald-600"
+                            checked={selectedContacts.includes(contact.id)}
+                            onChange={(e) => {
+                              // Esto evita la propagación del evento al div padre
+                              e.stopPropagation();
+                              if (!isSubmitting && !success) {
+                                handleContactSelection(contact.id);
+                                if (validationErrors.participants) {
+                                  setValidationErrors({...validationErrors, participants: null});
+                                }
+                              }
+                            }}
+                            disabled={isSubmitting || success}
+                          />
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
               )}
             </div>
-          )}
-        </div>
-        
-        <div className="text-emerald-600 text-sm my-4">
-          Participantes seleccionados: {selectedContacts.length}
-        </div>
-        
-        <button 
-          className={`w-full bg-emerald-600 text-white py-3 px-5 rounded text-sm hover:bg-emerald-700 ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
-          onClick={handleCreateGroup}
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? 'Creando...' : 'Crear Grupo'}
-        </button>
+            
+            <div className="text-emerald-600 text-sm my-4">
+              Participantes seleccionados: {selectedContacts.length}
+            </div>
+            
+            {error && (
+              <div className="mb-4 p-2 bg-red-100 border border-red-300 text-red-800 rounded">
+                {error}
+              </div>
+            )}
+            
+            <button 
+              type="submit"
+              className={`w-full ${isSubmitting || success ? 'bg-gray-400' : 'bg-emerald-600 hover:bg-emerald-700'} text-white py-3 px-5 rounded text-sm transition-colors`}
+              disabled={isSubmitting || success}
+            >
+              {isSubmitting ? 'Creando...' : success ? 'Creado' : 'Crear Grupo'}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );

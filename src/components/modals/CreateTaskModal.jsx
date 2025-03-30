@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X, ListTodo, Users } from 'lucide-react';
+import { X, ListTodo, Users, CheckCircle } from 'lucide-react';
 import axios from 'axios';
 
 const CreateTaskModal = ({ closeModal, group, onTaskCreated }) => {
   const [taskText, setTaskText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
 
   useEffect(() => {
@@ -19,6 +20,17 @@ const CreateTaskModal = ({ closeModal, group, onTaskCreated }) => {
       console.error('Error al obtener usuario actual:', error);
     }
   }, []);
+
+  // Efecto para cerrar el modal después de mostrar el mensaje de éxito
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => {
+        closeModal();
+      }, 2000); // Cerrar después de 2 segundos
+      
+      return () => clearTimeout(timer);
+    }
+  }, [success, closeModal]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -55,11 +67,10 @@ const CreateTaskModal = ({ closeModal, group, onTaskCreated }) => {
         onTaskCreated(response.data.task);
       }
       
-      // Mostrar mensaje de éxito
-      alert('Tarea creada con éxito');
+      // Mostrar mensaje de éxito con estilo
+      setSuccess(true);
       
-      // Cerrar el modal después de la creación exitosa
-      closeModal();
+      // No cerramos el modal inmediatamente, dejamos que el usuario vea el mensaje de éxito
     } catch (err) {
       console.error('Error al crear tarea:', err);
       setError(err.response?.data?.message || 'No se pudo crear la tarea. Inténtalo de nuevo.');
@@ -101,7 +112,7 @@ const CreateTaskModal = ({ closeModal, group, onTaskCreated }) => {
               placeholder="Describe la tarea a realizar..."
               value={taskText}
               onChange={(e) => setTaskText(e.target.value)}
-              
+              disabled={isSubmitting || success}
             ></textarea>
           </div>
 
@@ -111,19 +122,30 @@ const CreateTaskModal = ({ closeModal, group, onTaskCreated }) => {
             </div>
           )}
 
+          {/* Mensaje de éxito con estilo */}
+          {success && (
+            <div className="mb-4 bg-emerald-100 border-l-4 border-emerald-500 p-4 rounded flex items-center animate-fadeIn">
+              <CheckCircle size={24} className="text-emerald-500 mr-2" />
+              <div>
+                <p className="font-medium text-emerald-700">¡Tarea creada con éxito!</p>
+                <p className="text-sm text-emerald-600">La tarea ha sido asignada al grupo.</p>
+              </div>
+            </div>
+          )}
+
           <div className="flex justify-end">
             <button
               type="button"
               className="mr-2 px-4 py-2 text-gray-600 bg-gray-200 rounded-md hover:bg-gray-300"
               onClick={closeModal}
-              disabled={isSubmitting}
+              disabled={isSubmitting || success}
             >
               Cancelar
             </button>
             <button
               type="submit"
               className="px-4 py-2 bg-emerald-500 text-white rounded-md hover:bg-emerald-600 disabled:bg-emerald-300"
-              disabled={isSubmitting || !currentUserId || !group?.id}
+              disabled={isSubmitting || success || !currentUserId || !group?.id}
             >
               {isSubmitting ? 'Creando...' : 'Crear Tarea'}
             </button>

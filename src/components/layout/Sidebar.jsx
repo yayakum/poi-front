@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MoreVertical, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import io from 'socket.io-client';
 import ChatList from '../chat/ChatList.jsx';
 
 // Import avatar images
@@ -44,6 +45,52 @@ const Sidebar = ({
   const [user, setUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
+  const socketRef = useRef(null);
+  const socketInitialized = useRef(false);
+
+  // Función para inicializar el socket y configurar listeners
+  const initializeSocket = (userId) => {
+    if (socketInitialized.current) return;
+    
+    try {
+      // Crear nueva conexión socket
+      socketRef.current = io('http://localhost:3000/private');
+      
+      // Conectar y autenticar
+      socketRef.current.on('connect', () => {
+        console.log('Sidebar conectado a Socket.IO con ID:', socketRef.current.id);
+        socketRef.current.emit('authenticate', userId);
+        socketInitialized.current = true;
+      });
+      
+      // Escuchar actualizaciones de perfil de usuario
+      socketRef.current.on('userProfileUpdated', (userData) => {
+        console.log('Actualización de perfil recibida en Sidebar:', userData);
+        
+        // Si la actualización es para el usuario logueado, actualizar el estado
+        const loggedInUser = JSON.parse(localStorage.getItem('user'));
+        if (loggedInUser && loggedInUser.id === userData.id) {
+          // Actualizar el estado para mostrar los cambios inmediatamente
+          setUser(prevUser => {
+            if (prevUser && prevUser.id === userData.id) {
+              return {
+                ...prevUser,
+                nombre: userData.nombre,
+                foto_perfil: userData.foto_perfil,
+                descripcion: userData.descripcion
+              };
+            }
+            return prevUser;
+          });
+        }
+      });
+      
+      console.log('Socket inicializado en Sidebar para usuario:', userId);
+    } catch (error) {
+      console.error('Error al inicializar socket en Sidebar:', error);
+      socketInitialized.current = false;
+    }
+  };
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -64,6 +111,9 @@ const Sidebar = ({
         if (response.data.ok && response.data.usuario) {
           // Use fresh data from API instead of localStorage
           setUser(response.data.usuario);
+          
+          // Inicializar el socket para recibir actualizaciones en tiempo real
+          initializeSocket(storedUser.id);
         } else {
           navigate('/');
         }
@@ -74,6 +124,15 @@ const Sidebar = ({
     };
     
     fetchUserData();
+    
+    // Limpiar el socket al desmontar el componente
+    return () => {
+      if (socketRef.current) {
+        console.log('Desconectando socket de Sidebar');
+        socketRef.current.disconnect();
+        socketInitialized.current = false;
+      }
+    };
   }, [navigate]);
 
   const handleLogout = async () => {
@@ -85,8 +144,15 @@ const Sidebar = ({
           id: user.id
         });
         
+        // Desconectar el socket antes de cerrar sesión
+        if (socketRef.current) {
+          socketRef.current.disconnect();
+          socketInitialized.current = false;
+        }
+        
         // Clear localStorage
         localStorage.removeItem('user');
+        localStorage.removeItem('selectedChat');
         
         // Redirect to login page
         navigate('/');

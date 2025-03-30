@@ -37,6 +37,7 @@ const ChatList = ({ setSelectedUser, setSelectedGroup }) => {
   const [error, setError] = useState(null);
   const [loggedInUser, setLoggedInUser] = useState(null);
   const [activeTab, setActiveTab] = useState('all'); // 'all', 'users', 'groups'
+  const [unreadMessages, setUnreadMessages] = useState({}); // Objeto para rastrear mensajes no leídos por usuario/grupo
   const socketRef = useRef(null);
   const socketInitialized = useRef(false);
 
@@ -45,6 +46,203 @@ const ChatList = ({ setSelectedUser, setSelectedGroup }) => {
     if (!filename) return null;
     const avatar = avatarOptions.find(opt => opt.name === filename);
     return avatar ? avatar.src : null;
+  };
+
+  // Función mejorada para cargar el estado de mensajes no leídos
+  const loadUnreadMessagesStatus = async (userId) => {
+    try {
+      console.log('Cargando estado de mensajes no leídos para usuario:', userId);
+      const response = await axios.get(`http://localhost:3000/api/unread/${userId}`);
+      
+      const newUnreadMessages = {};
+      
+      // Procesar mensajes no leídos de chats privados
+      if (response.data && response.data.unreadStatus) {
+        response.data.unreadStatus.forEach(item => {
+          if (item.senderId) {
+            newUnreadMessages[item.senderId] = true;
+          }
+        });
+      }
+      
+      // Procesar mensajes no leídos de grupos
+      if (response.data && response.data.unreadGroupsStatus) {
+        response.data.unreadGroupsStatus.forEach(item => {
+          if (item.groupId) {
+            newUnreadMessages[`group-${item.groupId}`] = true;
+          }
+        });
+      }
+      
+      // Actualizar el estado con los nuevos datos
+      setUnreadMessages(prev => ({
+        ...prev,
+        ...newUnreadMessages
+      }));
+      
+      console.log('Estado de mensajes no leídos actualizado:', newUnreadMessages);
+    } catch (error) {
+      console.error('Error al cargar estado de mensajes no leídos:', error);
+    }
+  };
+
+  // Función para inicializar y configurar el socket
+  const initializeSocket = (userId) => {
+    if (socketInitialized.current) return;
+    
+    try {
+      console.log('Inicializando socket en ChatList para usuario:', userId);
+      
+      // Crear nueva conexión socket
+      socketRef.current = io('http://localhost:3000/private');
+      
+      // Conectar y autenticar
+      socketRef.current.on('connect', () => {
+        console.log('ChatList conectado a Socket.IO con ID:', socketRef.current.id);
+        socketRef.current.emit('authenticate', userId);
+        socketInitialized.current = true;
+      });
+      
+      // Escuchar cambios de estado de usuarios
+      socketRef.current.on('userStatusChanged', ({ userId, status }) => {
+        console.log(`Usuario ${userId} cambió estado a ${status}`);
+        setUsers(prevUsers => {
+          return prevUsers.map(u => 
+            u.id === parseInt(userId) ? { ...u, estado: status } : u
+          );
+        });
+      });
+      
+      // Escuchar actualizaciones de perfil de usuario
+      socketRef.current.on('userProfileUpdated', (userData) => {
+        console.log('Actualización de perfil recibida:', userData);
+        
+        // Actualizar la lista de usuarios
+        setUsers(prevUsers => {
+          return prevUsers.map(user => {
+            if (user.id === userData.id) {
+              return {
+                ...user,
+                nombre: userData.nombre,
+                foto_perfil: userData.foto_perfil,
+                descripcion: userData.descripcion
+              };
+            }
+            return user;
+          });
+        });
+        
+        // Si el usuario logueado es el mismo que se actualizó, actualizar también el localStorage
+        const loggedUser = JSON.parse(localStorage.getItem('user'));
+        if (loggedUser && loggedUser.id === userData.id) {
+          const updatedUser = {
+            ...loggedUser,
+            nombre: userData.nombre,
+            foto_perfil: userData.foto_perfil,
+            descripcion: userData.descripcion
+          };
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+          setLoggedInUser(updatedUser);
+        }
+        
+        // Si hay un usuario seleccionado y es el mismo que se actualizó, actualizarlo también
+        const selectedChat = JSON.parse(localStorage.getItem('selectedChat'));
+        if (selectedChat && selectedChat.type === 'user' && selectedChat.id === userData.id) {
+          setSelectedUser(prevSelected => {
+            if (prevSelected && prevSelected.id === userData.id) {
+              return {
+                ...prevSelected,
+                nombre: userData.nombre,
+                foto_perfil: userData.foto_perfil,
+                descripcion: userData.descripcion
+              };
+            }
+            return prevSelected;
+          });
+        }
+      });
+      
+      // Escuchar evento de creación de grupo
+      socketRef.current.on('groupCreated', (data) => {
+        console.log('Nuevo grupo creado:', data);
+        
+        // Añadir el nuevo grupo a la lista de grupos
+        setGroups(prevGroups => {
+          // Evitar duplicados verificando si el grupo ya existe
+          if (prevGroups.some(g => g.id === data.group.id)) {
+            return prevGroups;
+          }
+          return [...prevGroups, data.group];
+        });
+      });
+      
+      // Escuchar nuevas notificaciones de mensajes
+      socketRef.current.on('newMessageNotification', (data) => {
+        console.log('Nueva notificación de mensaje recibida en ChatList:', data);
+        
+        // Agregar el remitente a la lista de chats con mensajes no leídos
+        setUnreadMessages(prev => ({
+          ...prev,
+          [data.senderId]: true
+        }));
+      });
+      
+      // Escuchar notificaciones de mensajes de grupo
+      socketRef.current.on('newGroupMessageNotification', (data) => {
+        console.log('Nueva notificación de mensaje de grupo recibida:', data);
+        
+        // Verificar si el usuario no está actualmente en este grupo
+        const currentSelectedChat = JSON.parse(localStorage.getItem('selectedChat'));
+        if (!currentSelectedChat || 
+            currentSelectedChat.type !== 'group' || 
+            currentSelectedChat.id !== data.groupId) {
+          
+          // Actualizar el estado de mensajes no leídos para este grupo
+          setUnreadMessages(prev => ({
+            ...prev,
+            [`group-${data.groupId}`]: true
+          }));
+        }
+      });
+      
+      // Escuchar mensajes privados directamente
+      socketRef.current.on('privateMessage', (data) => {
+        console.log('Mensaje privado recibido en ChatList:', data);
+        
+        // Si el mensaje es para el usuario actual y no fue enviado por él
+        if (data.receiverId === userId && data.senderId !== userId) {
+          // Verificar si el usuario no está actualmente en este chat
+          const currentSelectedUser = JSON.parse(localStorage.getItem('selectedChat'));
+          if (!currentSelectedUser || currentSelectedUser.id !== data.senderId) {
+            // Actualizar estado de mensajes no leídos
+            setUnreadMessages(prev => ({
+              ...prev,
+              [data.senderId]: true
+            }));
+          }
+        }
+      });
+      
+      // Escuchar cuando los mensajes son marcados como leídos
+      socketRef.current.on('messagesRead', (data) => {
+        console.log('Notificación de mensajes leídos recibida:', data);
+        
+        // Si todos los mensajes de un usuario específico son leídos, actualizamos
+        if (data.readerId === userId) {
+          // Actualizar estado para limpiar la notificación para este chat específico
+          setUnreadMessages(prev => {
+            const updated = { ...prev };
+            delete updated[data.senderId];
+            return updated;
+          });
+        }
+      });
+      
+      console.log('Socket inicializado y listeners configurados para ChatList');
+    } catch (error) {
+      console.error('Error al inicializar socket en ChatList:', error);
+      socketInitialized.current = false;
+    }
   };
 
   useEffect(() => {
@@ -81,6 +279,12 @@ const ChatList = ({ setSelectedUser, setSelectedGroup }) => {
           // No interrumpimos la carga por error en grupos
         }
 
+        // Inicializar el socket con el ID del usuario
+        initializeSocket(user.id);
+        
+        // Cargar estado de mensajes no leídos
+        await loadUnreadMessagesStatus(user.id);
+
         setLoading(false);
       } catch (err) {
         console.error('Error al obtener datos:', err);
@@ -91,57 +295,91 @@ const ChatList = ({ setSelectedUser, setSelectedGroup }) => {
 
     fetchData();
     
-    // Inicializar Socket.IO - Solo una vez
-    const initSocket = () => {
-      if (socketInitialized.current) return;
-      
-      try {
-        socketRef.current = io('http://localhost:3000/private');
-        
-        const user = JSON.parse(localStorage.getItem('user'));
-        if (user && user.id) {
-          socketRef.current.on('connect', () => {
-            console.log('ChatList conectado a Socket.IO');
-            // Solo emitimos 'authenticate' una vez cuando el socket se conecta
-            socketRef.current.emit('authenticate', user.id);
-            socketInitialized.current = true;
-          });
-          
-          // Escuchar cambios de estado de usuarios
-          socketRef.current.on('userStatusChanged', ({ userId, status }) => {
-            console.log(`Usuario ${userId} cambió estado a ${status}`);
-            setUsers(prevUsers => {
-              return prevUsers.map(u => 
-                u.id === parseInt(userId) ? { ...u, estado: status } : u
-              );
-            });
-          });
-        }
-      } catch (socketError) {
-        console.error('Error al inicializar socket:', socketError);
-      }
-    };
-    
-    if (!socketInitialized.current) {
-      initSocket();
-    }
-    
+    // Limpiar conexión al desmontar
     return () => {
-      // Limpiar conexión al desmontar
       if (socketRef.current) {
+        console.log('Desconectando socket de ChatList al desmontar componente');
         socketRef.current.disconnect();
         socketInitialized.current = false;
       }
     };
   }, []);
 
+  // Escuchar el evento personalizado para nuevos grupos
+useEffect(() => {
+  const handleNewGroup = (e) => {
+    console.log('Evento de nuevo grupo recibido en ChatList:', e.detail);
+    
+    if (e.detail && e.detail.group) {
+      // Añadir el nuevo grupo a la lista local
+      setGroups(prevGroups => {
+        // Verificar si el grupo ya existe para evitar duplicados
+        if (prevGroups.some(g => g.id === e.detail.group.id)) {
+          return prevGroups;
+        }
+        return [...prevGroups, e.detail.group];
+      });
+    }
+  };
+  
+  // Agregar el listener para el evento personalizado
+  window.addEventListener('newGroupCreated', handleNewGroup);
+  
+  // Limpiar al desmontar
+  return () => {
+    window.removeEventListener('newGroupCreated', handleNewGroup);
+  };
+}, []);
+
+  // Escuchar periódicamente las actualizaciones de mensajes no leídos como respaldo
+  useEffect(() => {
+    if (!loggedInUser) return;
+    
+    // Actualizar el estado cada 30 segundos como respaldo (por si el socket falla)
+    const intervalId = setInterval(() => {
+      loadUnreadMessagesStatus(loggedInUser.id);
+    }, 30000); // 30 segundos
+    
+    return () => clearInterval(intervalId);
+  }, [loggedInUser]);
+
+  // Función mejorada para manejar la selección de un chat
   const handleSelection = (item, type) => {
     if (type === 'user') {
+      // Guardar el usuario seleccionado en localStorage para referencias cruzadas
+      localStorage.setItem('selectedChat', JSON.stringify({id: item.id, type: 'user'}));
+      
       setSelectedUser(item);
       setSelectedGroup(null);
+      
+      // Limpiar indicador de mensajes no leídos para este usuario
+      setUnreadMessages(prev => {
+        const updated = { ...prev };
+        delete updated[item.id];
+        return updated;
+      });
+      
+      // Enviar evento al servidor para marcar los mensajes como leídos
+      if (socketRef.current && loggedInUser) {
+        console.log(`Notificando al servidor que ${loggedInUser.id} se unió al chat con ${item.id}`);
+        socketRef.current.emit('joinChat', {
+          userId: loggedInUser.id,
+          targetId: item.id
+        });
+      }
     } else {
+      // Guardar el grupo seleccionado en localStorage para referencias cruzadas
+      localStorage.setItem('selectedChat', JSON.stringify({id: item.id, type: 'group'}));
+      
       setSelectedGroup(item);
       setSelectedUser(null);
+      
+      // Limpiar indicador de mensajes no leídos para este grupo
+      setUnreadMessages(prev => {
+        const updated = { ...prev };
+        delete updated[`group-${item.id}`];
+        return updated;
+      });
     }
   };
 
@@ -204,11 +442,12 @@ const ChatList = ({ setSelectedUser, setSelectedGroup }) => {
             {/* Lista de usuarios */}
             {filteredUsers.map((user) => {
               const avatarSrc = getAvatarSrc(user.foto_perfil);
+              const hasUnreadMessages = unreadMessages[user.id] === true;
               
               return (
                 <div 
                   key={`user-${user.id}`}
-                  className="p-4 flex items-center border-b border-gray-100 cursor-pointer hover:bg-gray-100"
+                  className="p-4 flex items-center border-b border-gray-100 cursor-pointer hover:bg-gray-100 relative"
                   onClick={() => handleSelection(user, 'user')}
                 >
                   <div className="relative">
@@ -240,6 +479,12 @@ const ChatList = ({ setSelectedUser, setSelectedGroup }) => {
                       )}
                     </div>
                   </div>
+                  
+                  {/* Indicador de mensajes no leídos - Notemos el diseño más visible */}
+                  {hasUnreadMessages && (
+                    <div className="absolute mt-4 top-4 right-4 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -247,11 +492,12 @@ const ChatList = ({ setSelectedUser, setSelectedGroup }) => {
             {/* Lista de grupos */}
             {filteredGroups.map((group) => {
               const groupAvatarSrc = getAvatarSrc(group.foto_grupo);
+              const hasUnreadMessages = unreadMessages[`group-${group.id}`] === true;
               
               return (
                 <div 
                   key={`group-${group.id}`}
-                  className="p-4 flex items-center border-b border-gray-100 cursor-pointer hover:bg-gray-100"
+                  className="p-4 flex items-center border-b border-gray-100 cursor-pointer hover:bg-gray-100 relative"
                   onClick={() => handleSelection(group, 'group')}
                 >
                   <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center overflow-hidden">
@@ -273,6 +519,13 @@ const ChatList = ({ setSelectedUser, setSelectedGroup }) => {
                       {group.grupo_usuarios?.length || 0} participantes
                     </div>
                   </div>
+                  
+                  {/* Indicador de mensajes no leídos para grupos */}
+                  {hasUnreadMessages && (
+                    <div className="absolute top-4 right-4 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                      
+                    </div>
+                  )}
                 </div>
               );
             })}
