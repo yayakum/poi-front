@@ -63,7 +63,7 @@ const Dashboard = () => {
       loggedInUserRef.current = user;
       
       // Inicializar socket para videollamadas
-      videoSocketRef.current = io('http://localhost:3000/video');
+      videoSocketRef.current = io('https://poi-back.vercel.app/video');
       
       // Autenticar al usuario en el socket
       videoSocketRef.current.on('connect', () => {
@@ -97,7 +97,7 @@ const Dashboard = () => {
           // Si no tenemos el nombre del llamante, intentar obtenerlo
           if (!data.callerName) {
             try {
-              const response = await axios.get(`http://localhost:3000/api/usuarios/${data.callerId}`);
+              const response = await axios.get(`https://poi-back.vercel.app/api/usuarios/${data.callerId}`);
               if (response.data && response.data.ok) {
                 callerInfo = response.data.data;
               }
@@ -231,7 +231,7 @@ const Dashboard = () => {
       const roomId = `room_${user.id}_${receiver.id}_${Date.now()}`;
       
       // Registrar la llamada en la base de datos
-      const callResponse = await axios.post('http://localhost:3000/api/calls/create', {
+      const callResponse = await axios.post('https://poi-back.vercel.app/api/calls/create', {
         iniciador_id: user.id,
         receptor_id: receiver.id
       });

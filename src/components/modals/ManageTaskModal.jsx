@@ -23,7 +23,7 @@ const ManageTaskModal = ({ closeModal, group }) => {
   const fetchTasks = async (groupId) => {
     try {
       setIsLoading(true);
-      const response = await axios.get(`http://localhost:3000/api/tasks/${groupId}`);
+      const response = await axios.get(`https://poi-back.vercel.app/api/tasks/${groupId}`);
       setTasks(response.data);
       setError(null);
     } catch (err) {
@@ -55,7 +55,7 @@ const ManageTaskModal = ({ closeModal, group }) => {
         return;
       }
 
-      await axios.put(`http://localhost:3000/api/tasks/${taskId}`, {
+      await axios.put(`https://poi-back.vercel.app/api/tasks/${taskId}`, {
         finalizado_por: loggedInUser.id
       });
 

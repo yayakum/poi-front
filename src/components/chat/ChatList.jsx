@@ -52,7 +52,7 @@ const ChatList = ({ setSelectedUser, setSelectedGroup }) => {
   const loadUnreadMessagesStatus = async (userId) => {
     try {
       console.log('Cargando estado de mensajes no leídos para usuario:', userId);
-      const response = await axios.get(`http://localhost:3000/api/unread/${userId}`);
+      const response = await axios.get(`https://poi-back.vercel.app/api/unread/${userId}`);
       
       const newUnreadMessages = {};
       
@@ -94,7 +94,7 @@ const ChatList = ({ setSelectedUser, setSelectedGroup }) => {
       console.log('Inicializando socket en ChatList para usuario:', userId);
       
       // Crear nueva conexión socket
-      socketRef.current = io('http://localhost:3000/private');
+      socketRef.current = io('https://poi-back.vercel.app/private');
       
       // Conectar y autenticar
       socketRef.current.on('connect', () => {
@@ -260,7 +260,7 @@ const ChatList = ({ setSelectedUser, setSelectedGroup }) => {
         setLoggedInUser(user);
 
         // Obtener usuarios
-        const usersResponse = await axios.get('http://localhost:3000/api/users/');
+        const usersResponse = await axios.get('https://poi-back.vercel.app/api/users/');
         if (usersResponse.data && usersResponse.data.usuarios) {
           const filteredUsers = usersResponse.data.usuarios.filter(u => u.id !== user.id);
           setUsers(filteredUsers);
@@ -270,7 +270,7 @@ const ChatList = ({ setSelectedUser, setSelectedGroup }) => {
 
         // Obtener grupos del usuario
         try {
-          const groupsResponse = await axios.get(`http://localhost:3000/api/grupos/usuario/${user.id}`);
+          const groupsResponse = await axios.get(`https://poi-back.vercel.app/api/grupos/usuario/${user.id}`);
           if (groupsResponse.data && groupsResponse.data.grupos) {
             setGroups(groupsResponse.data.grupos);
           }

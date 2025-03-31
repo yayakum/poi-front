@@ -64,7 +64,7 @@ const MainChat = ({ openModal, initiateCall, selectedUser: initialSelectedUser, 
     if (!loggedInUser) return;
 
     // Crear conexión con el servidor Socket.IO
-    socketRef.current = io('http://localhost:3000/private');
+    socketRef.current = io('https://poi-back.vercel.app/private');
 
     // Manejar eventos de conexión
     socketRef.current.on('connect', () => {
@@ -243,7 +243,7 @@ socketRef.current.on('privateMessageConfirmation', (data) => {
       }
       
       // Cargar mensajes desde la API
-      axios.get(`http://localhost:3000/api/mensajes/${loggedInUser.id}/${selectedUserState.id}`)
+      axios.get(`https://poi-back.vercel.app/api/mensajes/${loggedInUser.id}/${selectedUserState.id}`)
         .then(response => {
           // Cargar los mensajes después de un pequeño retraso para permitir que el DOM se actualice
           setTimeout(() => {
@@ -374,7 +374,7 @@ socketRef.current.on('privateMessageConfirmation', (data) => {
 
 // Reemplazar el bloque existente de actualización de mensaje después de la carga
 try {
-  const response = await axios.post('http://localhost:3000/api/mensajes/archivo', formData, {
+  const response = await axios.post('https://poi-back.vercel.app/api/mensajes/archivo', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
     onUploadProgress: (progressEvent) => {
       const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
@@ -387,7 +387,7 @@ try {
   
   // Asegurarnos de que la URL sea completa con el servidor base
   if (sentMessage.file && sentMessage.file.url) {
-    const serverUrl = 'http://localhost:3000'; // URL base del servidor
+    const serverUrl = 'https://poi-back.vercel.app'; // URL base del servidor
     
     // Si la URL no comienza con http, agregarle el servidor base
     if (!sentMessage.file.url.startsWith('http')) {

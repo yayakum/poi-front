@@ -103,7 +103,7 @@ class ZegoCloudService {
   // Registro en la BD
   async registerCallInDB(callerId, receiverId) {
     // Llama a tu API para registrar la llamada
-    const response = await axios.post('http://localhost:3000/api/calls/create', {
+    const response = await axios.post('https://poi-back.vercel.app/api/calls/create', {
       iniciador_id: callerId,
       receptor_id: receiverId
     });
@@ -113,7 +113,7 @@ class ZegoCloudService {
   // Actualiza estado en la BD
   async updateCallStatus(callId, status) {
     // Llama a tu API para actualizar el estado de la llamada
-    const response = await axios.post('http://localhost:3000/api/calls/update-status', {
+    const response = await axios.post('https://poi-back.vercel.app/api/calls/update-status', {
       callId: callId,
       estado: status
     });
