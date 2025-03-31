@@ -54,7 +54,7 @@ const Sidebar = ({
     
     try {
       // Crear nueva conexión socket
-      socketRef.current = io('https://poi-back.vercel.app/private');
+      socketRef.current = io('http://localhost:3000/private');
       
       // Conectar y autenticar
       socketRef.current.on('connect', () => {
@@ -104,7 +104,7 @@ const Sidebar = ({
         }
         
         // Fetch fresh user data from API
-        const response = await axios.get(`https://poi-back.vercel.app/api/users/${storedUser.id}`, {
+        const response = await axios.get(`http://localhost:3000/api/users/${storedUser.id}`, {
           withCredentials: true
         });
         
@@ -140,7 +140,7 @@ const Sidebar = ({
       // Get user ID from state
       if (user && user.id) {
         // Call API to update offline status
-        await axios.post('https://poi-back.vercel.app/api/logout', {
+        await axios.post('http://localhost:3000/api/logout', {
           id: user.id
         });
         

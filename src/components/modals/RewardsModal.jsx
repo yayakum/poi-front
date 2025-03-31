@@ -34,7 +34,7 @@ const RewardsModal = ({ closeModal }) => {
         }
         
         // Obtener datos actualizados del usuario desde la API
-        const response = await axios.get(`https://poi-back.vercel.app/api/users/${storedUser.id}`, {
+        const response = await axios.get(`http://localhost:3000/api/users/${storedUser.id}`, {
           withCredentials: true
         });
         
@@ -70,7 +70,7 @@ const RewardsModal = ({ closeModal }) => {
     const fetchRewards = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`https://poi-back.vercel.app/api/rewards`);
+        const response = await axios.get(`http://localhost:3000/api/rewards`);
         
         if (response.data.ok && response.data.rewards) {
           // Ordenar las recompensas por costo (de menor a mayor)
@@ -98,7 +98,7 @@ const RewardsModal = ({ closeModal }) => {
         try {
           setLoading(true);
           // Obtener historial de recompensas canjeadas
-          const historyResponse = await axios.get(`https://poi-back.vercel.app/api/rewards/user/${userData.id}`);
+          const historyResponse = await axios.get(`http://localhost:3000/api/rewards/user/${userData.id}`);
           
           if (historyResponse.data.redeemedRewards) {
             setRedeemedRewards(historyResponse.data.redeemedRewards);
@@ -153,7 +153,7 @@ const RewardsModal = ({ closeModal }) => {
 
     try {
       // Llamada al endpoint para canjear la recompensa
-      const response = await axios.post(`https://poi-back.vercel.app/api/rewards/redeem`, {
+      const response = await axios.post(`http://localhost:3000/api/rewards/redeem`, {
         userId: userData.id,
         rewardId: rewardId
       });
@@ -163,7 +163,7 @@ const RewardsModal = ({ closeModal }) => {
         setUserPoints(response.data.user.puntos_acumulados);
         
         // Actualizar el historial de recompensas
-        const historyResponse = await axios.get(`https://poi-back.vercel.app/api/rewards/user/${userData.id}`);
+        const historyResponse = await axios.get(`http://localhost:3000/api/rewards/user/${userData.id}`);
         if (historyResponse.data.redeemedRewards) {
           setRedeemedRewards(historyResponse.data.redeemedRewards);
         }

@@ -86,7 +86,7 @@ const NewGroupModal = ({ closeModal, onGroupCreated }) => {
         setLoggedInUser(currentUser);
 
         // Obtener todos los usuarios
-        const response = await axios.get('https://poi-back.vercel.app/api/users/');
+        const response = await axios.get('http://localhost:3000/api/users/');
         
         // Filtrar para excluir al usuario actual
         const filteredContacts = response.data.usuarios.filter(user => user.id !== currentUser?.id);
@@ -106,7 +106,7 @@ const NewGroupModal = ({ closeModal, onGroupCreated }) => {
       if (socketInitialized.current) return;
       
       try {
-        socketRef.current = io('https://poi-back.vercel.app/private');
+        socketRef.current = io('http://localhost:3000/private');
         
         const user = JSON.parse(localStorage.getItem('user'));
         if (user && user.id) {
@@ -195,7 +195,7 @@ const NewGroupModal = ({ closeModal, onGroupCreated }) => {
       setIsSubmitting(true);
       
       // Llamada a la API para crear el grupo
-      const response = await axios.post('https://poi-back.vercel.app/api/grupos', {
+      const response = await axios.post('http://localhost:3000/api/grupos', {
         nombre: groupName,
         descripcion: description,
         creador_id: loggedInUser.id,

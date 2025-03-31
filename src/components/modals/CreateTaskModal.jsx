@@ -54,7 +54,7 @@ const CreateTaskModal = ({ closeModal, group, onTaskCreated }) => {
     setError('');
 
     try {
-      const response = await axios.post('https://poi-back.vercel.app/api/tasks', {
+      const response = await axios.post('http://localhost:3000/api/tasks', {
         grupo_id: group.id,
         texto: taskText,
         creado_por: currentUserId
