@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const RegisterModal = ({ isOpen, onClose, onRegister }) => {
   const [registerName, setRegisterName] = useState('');
   const [registerPhone, setRegisterPhone] = useState('');
@@ -134,7 +134,7 @@ const RegisterModal = ({ isOpen, onClose, onRegister }) => {
     }
 
     try {
-      const response = await axios.post('http://localhost:3000/api/users/', {
+      const response = await axios.post(`${API_URL}/api/users/`, {
         nombre: registerName,
         telefono: registerPhone,
         password: registerPassword,

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, CircleCheck, CircleDashed, ChevronDown, ChevronUp } from 'lucide-react';
 import axios from 'axios';
-
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const ManageTaskModal = ({ closeModal, group }) => {
   const [tasks, setTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -23,7 +23,7 @@ const ManageTaskModal = ({ closeModal, group }) => {
   const fetchTasks = async (groupId) => {
     try {
       setIsLoading(true);
-      const response = await axios.get(`http://localhost:3000/api/tasks/${groupId}`);
+      const response = await axios.get(`${API_URL}/api/tasks/${groupId}`);
       setTasks(response.data);
       setError(null);
     } catch (err) {
@@ -55,7 +55,7 @@ const ManageTaskModal = ({ closeModal, group }) => {
         return;
       }
 
-      await axios.put(`http://localhost:3000/api/tasks/${taskId}`, {
+      await axios.put(`${API_URL}/api/tasks/${taskId}`, {
         finalizado_por: loggedInUser.id
       });
 
