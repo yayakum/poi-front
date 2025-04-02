@@ -61,14 +61,14 @@ const GroupChat = ({ openModal, selectedGroup, closeChat }) => {
   const fileInputRef = useRef(null);
   const [hasPendingTasks, setHasPendingTasks] = useState(false);
   const [lastTaskCheck, setLastTaskCheck] = useState(null);
-
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
   // Inicializar Socket.IO
   useEffect(() => {
     const loggedInUser = JSON.parse(localStorage.getItem('user'));
     if (!loggedInUser) return;
 
     // Conectar al namespace de grupo
-    socketRef.current = io('http://localhost:3000/group');
+    socketRef.current = io(`${API_URL}/group`);
 
     socketRef.current.on('connect', () => {
       console.log('Conectado al servidor Socket.IO (grupo)');
@@ -167,7 +167,7 @@ const GroupChat = ({ openModal, selectedGroup, closeChat }) => {
     if (!selectedGroup || !selectedGroup.id) return;
     
     try {
-      const response = await axios.get(`http://localhost:3000/api/tasks/${selectedGroup.id}`);
+      const response = await axios.get(`${API_URL}/api/tasks/${selectedGroup.id}`);
       const pendingTasks = response.data.filter(task => task.estatus !== 'completa');
       
       // Establecer el estado de notificación si hay tareas pendientes
@@ -214,7 +214,7 @@ const GroupChat = ({ openModal, selectedGroup, closeChat }) => {
       }
 
       // Cargar mensajes del grupo
-      axios.get(`http://localhost:3000/api/messages/grupo/${selectedGroup.id}?userId=${loggedInUser.id}`)
+      axios.get(`${API_URL}/api/messages/grupo/${selectedGroup.id}?userId=${loggedInUser.id}`)
         .then(response => {
           setMessages(response.data.messages.map(msg => ({
             ...msg,
@@ -266,7 +266,7 @@ const GroupChat = ({ openModal, selectedGroup, closeChat }) => {
     });
 
     // También enviar solicitud HTTP para respaldo/sincronización
-    axios.post('http://localhost:3000/api/messages/grupo/read', {
+    axios.post(`${API_URL}/api/messages/grupo/read`, {
       userId: loggedInUser.id,
       groupId: selectedGroup.id,
       messageIds: filteredIds
@@ -349,7 +349,7 @@ const GroupChat = ({ openModal, selectedGroup, closeChat }) => {
       formData.append('grupo_id', selectedGroup.id);
       
       try {
-        const response = await axios.post('http://localhost:3000/api/mensajes/archivo', formData, {
+        const response = await axios.post(`${API_URL}/api/mensajes/archivo`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
           onUploadProgress: (progressEvent) => {
             const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
@@ -362,7 +362,7 @@ const GroupChat = ({ openModal, selectedGroup, closeChat }) => {
         
         // Asegurarnos de que la URL sea completa con el servidor base
         if (sentMessage.file && sentMessage.file.url) {
-          const serverUrl = 'http://localhost:3000'; // URL base del servidor
+          const serverUrl = `${API_URL}`; // URL base del servidor
           
           // Si la URL no comienza con http, agregarle el servidor base
           if (!sentMessage.file.url.startsWith('http')) {

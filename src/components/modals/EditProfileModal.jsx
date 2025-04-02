@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Edit, Check, Lock, CheckCircle } from 'lucide-react';
 import axios from 'axios';
 import io from 'socket.io-client';
-
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 // Importamos nuestra configuración centralizada de avatares
 import { DEFAULT_AVATARS, REWARD_AVATARS, getAvatarByName, getAllAvatars } from '../../config/AvatarConfig.js';
 
@@ -29,7 +29,7 @@ const EditProfileModal = ({ closeModal, userId }) => {
 
   // Inicializar socket para recibir actualizaciones en tiempo real
   useEffect(() => {
-    socketRef.current = io('http://localhost:3000/private');
+    socketRef.current = io(`${API_URL}/private`);
     
     return () => {
       if (socketRef.current) {
@@ -52,7 +52,7 @@ const EditProfileModal = ({ closeModal, userId }) => {
       }
       
       // Hacer la petición a la API para datos del usuario
-      const response = await axios.get(`http://localhost:3000/api/users/${id}`, {
+      const response = await axios.get(`${API_URL}/api/users/${id}`, {
         withCredentials: true
       });
       
@@ -89,7 +89,7 @@ const EditProfileModal = ({ closeModal, userId }) => {
   // Función para cargar las recompensas canjeadas por el usuario
   const fetchUserRewards = async (userId) => {
     try {
-      const response = await axios.get(`http://localhost:3000/api/rewards/user/${userId}`);
+      const response = await axios.get(`${API_URL}/api/rewards/user/${userId}`);
       if (response.data && response.data.redeemedRewards) {
         setRedeemedRewards(response.data.redeemedRewards);
       }
@@ -201,7 +201,7 @@ const EditProfileModal = ({ closeModal, userId }) => {
       
       // Llamada a la API
       const response = await axios.put(
-        `http://localhost:3000/api/users/${id}`, 
+        `${API_URL}/api/users/${id}`, 
         dataToUpdate,
         { withCredentials: true }
       );

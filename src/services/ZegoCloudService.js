@@ -1,6 +1,7 @@
 // src/services/ZegoCloudService.js
 import { ZegoUIKitPrebuilt } from '@zegocloud/zego-uikit-prebuilt';
 import axios from 'axios';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 class ZegoCloudService {
   constructor() {
@@ -10,6 +11,40 @@ class ZegoCloudService {
     this.zp = null;
     this.localStream = null;
     this.remoteStream = null;
+  }
+  
+  // Verifica si estamos en un contexto seguro
+  isSecureContext() {
+    return window.isSecureContext;
+  }
+
+  // Verifica si estamos en localhost
+  isLocalhost() {
+    return window.location.hostname === 'localhost' || 
+           window.location.hostname === '127.0.0.1';
+  }
+  
+  // Verificar permisos de medios antes de iniciar
+  async checkMediaPermissions() {
+    try {
+      // Primero verificamos si estamos en un contexto no seguro en un dominio que no es localhost
+      if (!this.isLocalhost() && !this.isSecureContext()) {
+        console.warn('No es un contexto seguro ni localhost - es probable que falle el acceso a medios');
+        // Retornamos pero no lanzamos error para permitir que la aplicación intente de todos modos
+        // (podría funcionar en algunos navegadores o configuraciones)
+      }
+
+      // Intentar obtener permisos
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+      
+      // Liberar el stream después de la prueba
+      stream.getTracks().forEach(track => track.stop());
+      
+      return true;
+    } catch (error) {
+      console.error('Error en permisos de medios:', error);
+      return false;
+    }
   }
   
   // Genera token para Zegocloud
@@ -31,6 +66,14 @@ class ZegoCloudService {
   // Función para iniciar una llamada (solo conecta streams, no UI)
   async startCall(element, roomId, userId, userName, callbacks = {}) {
     try {
+      // Verificar permisos primero
+      const hasPermissions = await this.checkMediaPermissions();
+      
+      if (!hasPermissions) {
+        // Intentar de todos modos pero advertir sobre posibles errores
+        console.warn('Iniciando llamada sin permisos confirmados. Es posible que falle.');
+      }
+      
       // Generar token
       const token = await this.generateToken(roomId, userId, userName);
       
@@ -60,6 +103,17 @@ class ZegoCloudService {
           callbacks.onRemoteStreamAdded(streamList);
         }
       });
+
+      // Manejar errores
+      this.zp.on('error', (errorCode, errorMessage) => {
+        console.error(`Error Zego: ${errorCode} - ${errorMessage}`);
+        if (callbacks.onError) {
+          callbacks.onError({
+            code: errorCode,
+            message: errorMessage
+          });
+        }
+      });
       
       return {
         zp: this.zp,
@@ -67,6 +121,15 @@ class ZegoCloudService {
       };
     } catch (error) {
       console.error("Error iniciando llamada:", error);
+      
+      // Si hay una devolución de llamada de error, llámala
+      if (callbacks.onError) {
+        callbacks.onError({
+          code: 'START_CALL_ERROR',
+          message: error.message || 'Error desconocido al iniciar llamada'
+        });
+      }
+      
       throw error;
     }
   }
@@ -103,7 +166,7 @@ class ZegoCloudService {
   // Registro en la BD
   async registerCallInDB(callerId, receiverId) {
     // Llama a tu API para registrar la llamada
-    const response = await axios.post('http://localhost:3000/api/calls/create', {
+    const response = await axios.post(`${API_URL}/api/calls/create`, {
       iniciador_id: callerId,
       receptor_id: receiverId
     });
@@ -113,7 +176,7 @@ class ZegoCloudService {
   // Actualiza estado en la BD
   async updateCallStatus(callId, status) {
     // Llama a tu API para actualizar el estado de la llamada
-    const response = await axios.post('http://localhost:3000/api/calls/update-status', {
+    const response = await axios.post(`${API_URL}/api/calls/update-status`, {
       callId: callId,
       estado: status
     });

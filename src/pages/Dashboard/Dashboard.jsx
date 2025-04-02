@@ -15,6 +15,7 @@ import ManageTaskModal from '../../components/modals/ManageTaskModal.jsx';
 import io from 'socket.io-client';
 import ZegoCloudService from '../../services/ZegoCloudService';
 import axios from 'axios';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const Dashboard = () => {
   const [activeModal, setActiveModal] = useState(null);
@@ -63,7 +64,7 @@ const Dashboard = () => {
       loggedInUserRef.current = user;
       
       // Inicializar socket para videollamadas
-      videoSocketRef.current = io('http://localhost:3000/video');
+      videoSocketRef.current = io(`${API_URL}/video`);
       
       // Autenticar al usuario en el socket
       videoSocketRef.current.on('connect', () => {
@@ -97,7 +98,7 @@ const Dashboard = () => {
           // Si no tenemos el nombre del llamante, intentar obtenerlo
           if (!data.callerName) {
             try {
-              const response = await axios.get(`http://localhost:3000/api/usuarios/${data.callerId}`);
+              const response = await axios.get(`${API_URL}/api/usuarios/${data.callerId}`);
               if (response.data && response.data.ok) {
                 callerInfo = response.data.data;
               }
@@ -231,7 +232,7 @@ const Dashboard = () => {
       const roomId = `room_${user.id}_${receiver.id}_${Date.now()}`;
       
       // Registrar la llamada en la base de datos
-      const callResponse = await axios.post('http://localhost:3000/api/calls/create', {
+      const callResponse = await axios.post(`${API_URL}/api/calls/create`, {
         iniciador_id: user.id,
         receptor_id: receiver.id
       });

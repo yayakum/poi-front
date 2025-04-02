@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, ListTodo, Users, CheckCircle } from 'lucide-react';
 import axios from 'axios';
-
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const CreateTaskModal = ({ closeModal, group, onTaskCreated }) => {
   const [taskText, setTaskText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -54,7 +54,7 @@ const CreateTaskModal = ({ closeModal, group, onTaskCreated }) => {
     setError('');
 
     try {
-      const response = await axios.post('http://localhost:3000/api/tasks', {
+      const response = await axios.post(`${API_URL}/api/tasks`, {
         grupo_id: group.id,
         texto: taskText,
         creado_por: currentUserId

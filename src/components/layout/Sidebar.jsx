@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import io from 'socket.io-client';
 import ChatList from '../chat/ChatList.jsx';
-
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 // Import avatar images
 import BMO from '../../assets/BMO.jpg';
 import BonnibelBubblegum from '../../assets/BonnibelBubblegum.jpg';
@@ -54,7 +54,7 @@ const Sidebar = ({
     
     try {
       // Crear nueva conexión socket
-      socketRef.current = io('http://localhost:3000/private');
+      socketRef.current = io(`${API_URL}/private`);
       
       // Conectar y autenticar
       socketRef.current.on('connect', () => {
@@ -104,7 +104,7 @@ const Sidebar = ({
         }
         
         // Fetch fresh user data from API
-        const response = await axios.get(`http://localhost:3000/api/users/${storedUser.id}`, {
+        const response = await axios.get(`${API_URL}/api/users/${storedUser.id}`, {
           withCredentials: true
         });
         
@@ -140,7 +140,7 @@ const Sidebar = ({
       // Get user ID from state
       if (user && user.id) {
         // Call API to update offline status
-        await axios.post('http://localhost:3000/api/logout', {
+        await axios.post(`${API_URL}/api/logout`, {
           id: user.id
         });
         
