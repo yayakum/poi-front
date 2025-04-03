@@ -64,7 +64,16 @@ const MainChat = ({ openModal, initiateCall, selectedUser: initialSelectedUser, 
     if (!loggedInUser) return;
 
     // Crear conexión con el servidor Socket.IO
-    socketRef.current = io(`${API_URL}/private`);
+    socketRef.current = io(`${API_URL}/private`, {
+      transports: ['websocket', 'polling'],
+      withCredentials: true,
+      autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 20000,
+      forceNew: true
+    });
 
     // Manejar eventos de conexión
     socketRef.current.on('connect', () => {

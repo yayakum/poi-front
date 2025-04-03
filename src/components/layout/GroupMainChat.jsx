@@ -68,7 +68,16 @@ const GroupChat = ({ openModal, selectedGroup, closeChat }) => {
     if (!loggedInUser) return;
 
     // Conectar al namespace de grupo
-    socketRef.current = io(`${API_URL}/group`);
+    socketRef.current = io(`${API_URL}/group`, {
+      transports: ['websocket', 'polling'],
+      withCredentials: true,
+      autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 20000,
+      forceNew: true
+    });
 
     socketRef.current.on('connect', () => {
       console.log('Conectado al servidor Socket.IO (grupo)');
