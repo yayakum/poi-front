@@ -1,7 +1,7 @@
 // src/services/ZegoCloudService.js
 import { ZegoUIKitPrebuilt } from '@zegocloud/zego-uikit-prebuilt';
 import axios from 'axios';
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+// const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 class ZegoCloudService {
   constructor() {
@@ -166,7 +166,8 @@ class ZegoCloudService {
   // Registro en la BD
   async registerCallInDB(callerId, receiverId) {
     // Llama a tu API para registrar la llamada
-    const response = await axios.post(`${API_URL}/api/calls/create`, {
+    // const response = await axios.post(`${API_URL}/api/calls/create`, {
+      const response = await axios.post('https://poi-back-xi.vercel.app/api/calls/create', {
       iniciador_id: callerId,
       receptor_id: receiverId
     });
@@ -176,7 +177,8 @@ class ZegoCloudService {
   // Actualiza estado en la BD
   async updateCallStatus(callId, status) {
     // Llama a tu API para actualizar el estado de la llamada
-    const response = await axios.post(`${API_URL}/api/calls/update-status`, {
+    // const response = await axios.post(`${API_URL}/api/calls/update-status`, {
+      const response = await axios.post('https://poi-back-xi.vercel.app/api/calls/update-status', {
       callId: callId,
       estado: status
     });
