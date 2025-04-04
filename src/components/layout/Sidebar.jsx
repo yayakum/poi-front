@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import io from 'socket.io-client';
 import ChatList from '../chat/ChatList.jsx';
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+// const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 // Import avatar images
 import BMO from '../../assets/BMO.jpg';
 import BonnibelBubblegum from '../../assets/BonnibelBubblegum.jpg';
@@ -54,7 +54,8 @@ const Sidebar = ({
     
     try {
       // Crear nueva conexión socket
-      socketRef.current = io(`${API_URL}/private`);
+      // socketRef.current = io(`${API_URL}/private`);
+      socketRef.current = io(`https://poi-back-xi.vercel.app/private`);
       
       // Conectar y autenticar
       socketRef.current.on('connect', () => {
@@ -104,7 +105,8 @@ const Sidebar = ({
         }
         
         // Fetch fresh user data from API
-        const response = await axios.get(`${API_URL}/api/users/${storedUser.id}`, {
+        // const response = await axios.get(`${API_URL}/api/users/${storedUser.id}`, {
+          const response = await axios.get(`https://poi-back-xi.vercel.app/api/users/${storedUser.id}`, {
           withCredentials: true
         });
         
@@ -140,7 +142,8 @@ const Sidebar = ({
       // Get user ID from state
       if (user && user.id) {
         // Call API to update offline status
-        await axios.post(`${API_URL}/api/logout`, {
+        // await axios.post(`${API_URL}/api/logout`, {
+          await axios.post('https://poi-back-xi.vercel.app/api/logout', {
           id: user.id
         });
         

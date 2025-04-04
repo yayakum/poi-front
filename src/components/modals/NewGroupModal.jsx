@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Search, CheckCircle, Users } from 'lucide-react';
 import axios from 'axios';
 import io from 'socket.io-client';
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+// const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 // Importamos las imágenes de avatares
 import BMO from '../../assets/BMO.jpg';
 import BonnibelBubblegum from '../../assets/BonnibelBubblegum.jpg';
@@ -86,7 +86,8 @@ const NewGroupModal = ({ closeModal, onGroupCreated }) => {
         setLoggedInUser(currentUser);
 
         // Obtener todos los usuarios
-        const response = await axios.get(`${API_URL}/api/users/`);
+        // const response = await axios.get(`${API_URL}/api/users/`);
+        const response = await axios.get('https://poi-back-xi.vercel.app/api/users');
         
         // Filtrar para excluir al usuario actual
         const filteredContacts = response.data.usuarios.filter(user => user.id !== currentUser?.id);
@@ -106,7 +107,8 @@ const NewGroupModal = ({ closeModal, onGroupCreated }) => {
       if (socketInitialized.current) return;
       
       try {
-        socketRef.current = io(`${API_URL}/private`);
+        // socketRef.current = io(`${API_URL}/private`);
+        socketRef.current = io('https://poi-back-xi.vercel.app/private');
         
         const user = JSON.parse(localStorage.getItem('user'));
         if (user && user.id) {
@@ -195,7 +197,8 @@ const NewGroupModal = ({ closeModal, onGroupCreated }) => {
       setIsSubmitting(true);
       
       // Llamada a la API para crear el grupo
-      const response = await axios.post(`${API_URL}/api/grupos`, {
+      // const response = await axios.post(`${API_URL}/api/grupos`, {
+        const response = await axios.post('https://poi-back-xi.vercel.app/api/grupos', {
         nombre: groupName,
         descripcion: description,
         creador_id: loggedInUser.id,

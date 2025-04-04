@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { MessageSquare } from 'lucide-react';
 import axios from 'axios';
 import RegisterModal from '../../components/modals/RegisterModal.jsx';
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+// const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const Login = () => {
   const [phone, setPhone] = useState('');
@@ -100,7 +100,8 @@ const Login = () => {
       return;
     }
     try {
-      const response = await axios.post(`${API_URL}/api/login`, {
+      // const response = await axios.post(`${API_URL}/api/login`, {
+        const response = await axios.post(`https://poi-back-xi.vercel.app/api/login`, {
         telefono: phone,
         password,
       });

@@ -8,8 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "host": "vite --host",
-    "host-https": "vite --host --https"
+    "host": "vite --host"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.0.12",

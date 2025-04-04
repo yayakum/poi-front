@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import io from 'socket.io-client';
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+// const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 // Import avatar images
 import BMO from '../../assets/BMO.jpg';
@@ -53,7 +53,8 @@ const ChatList = ({ setSelectedUser, setSelectedGroup }) => {
   const loadUnreadMessagesStatus = async (userId) => {
     try {
       console.log('Cargando estado de mensajes no leídos para usuario:', userId);
-      const response = await axios.get(`${API_URL}/api/unread/${userId}`);
+      // const response = await axios.get(`${API_URL}/api/unread/${userId}`);
+      const response = await axios.get(`https://poi-back-xi.vercel.app/api/unread/${userId}`);
       
       const newUnreadMessages = {};
       
@@ -95,7 +96,8 @@ const ChatList = ({ setSelectedUser, setSelectedGroup }) => {
       console.log('Inicializando socket en ChatList para usuario:', userId);
       
       // Crear nueva conexión socket
-      socketRef.current = io(`${API_URL}/api/private`);
+      // socketRef.current = io(`${API_URL}/api/private`);
+      socketRef.current = io('https://poi-back-xi.vercel.app/api/private');
       
       // Conectar y autenticar
       socketRef.current.on('connect', () => {
@@ -261,7 +263,8 @@ const ChatList = ({ setSelectedUser, setSelectedGroup }) => {
         setLoggedInUser(user);
 
         // Obtener usuarios
-        const usersResponse = await axios.get(`${API_URL}/api/users/`);
+        // const usersResponse = await axios.get(`${API_URL}/api/users/`);
+        const usersResponse = await axios.get('https://poi-back-xi.vercel.app/api/users/');
         if (usersResponse.data && usersResponse.data.usuarios) {
           const filteredUsers = usersResponse.data.usuarios.filter(u => u.id !== user.id);
           setUsers(filteredUsers);
@@ -271,7 +274,8 @@ const ChatList = ({ setSelectedUser, setSelectedGroup }) => {
 
         // Obtener grupos del usuario
         try {
-          const groupsResponse = await axios.get(`${API_URL}/api/grupos/usuario/${user.id}`);
+          // const groupsResponse = await axios.get(`${API_URL}/api/grupos/usuario/${user.id}`);
+          const groupsResponse = await axios.get(`https://poi-back-xi.vercel.app/api/grupos/usuario/${user.id}`);
           if (groupsResponse.data && groupsResponse.data.grupos) {
             setGroups(groupsResponse.data.grupos);
           }

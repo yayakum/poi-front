@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Edit, Check, Lock, CheckCircle } from 'lucide-react';
 import axios from 'axios';
 import io from 'socket.io-client';
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+// const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 // Importamos nuestra configuración centralizada de avatares
 import { DEFAULT_AVATARS, REWARD_AVATARS, getAvatarByName, getAllAvatars } from '../../config/AvatarConfig.js';
 
@@ -29,7 +29,8 @@ const EditProfileModal = ({ closeModal, userId }) => {
 
   // Inicializar socket para recibir actualizaciones en tiempo real
   useEffect(() => {
-    socketRef.current = io(`${API_URL}/private`);
+    // socketRef.current = io(`${API_URL}/private`);
+    socketRef.current = io('https://poi-back-xi.vercel.app/private');
     
     return () => {
       if (socketRef.current) {
@@ -52,7 +53,8 @@ const EditProfileModal = ({ closeModal, userId }) => {
       }
       
       // Hacer la petición a la API para datos del usuario
-      const response = await axios.get(`${API_URL}/api/users/${id}`, {
+      // const response = await axios.get(`${API_URL}/api/users/${id}`, {
+        const response = await axios.get(`https://poi-back-xi.vercel.app/api/users/${id}`, {
         withCredentials: true
       });
       
@@ -89,7 +91,8 @@ const EditProfileModal = ({ closeModal, userId }) => {
   // Función para cargar las recompensas canjeadas por el usuario
   const fetchUserRewards = async (userId) => {
     try {
-      const response = await axios.get(`${API_URL}/api/rewards/user/${userId}`);
+      // const response = await axios.get(`${API_URL}/api/rewards/user/${userId}`);
+      const response = await axios.get(`https://poi-back-xi.vercel.app/api/rewards/user/${userId}`);
       if (response.data && response.data.redeemedRewards) {
         setRedeemedRewards(response.data.redeemedRewards);
       }
@@ -201,7 +204,8 @@ const EditProfileModal = ({ closeModal, userId }) => {
       
       // Llamada a la API
       const response = await axios.put(
-        `${API_URL}/api/users/${id}`, 
+        // `${API_URL}/api/users/${id}`,
+        `https://poi-back-xi.vercel.app/api/users/${id}`,
         dataToUpdate,
         { withCredentials: true }
       );
