@@ -7,7 +7,7 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route index path="/" element={<Login />} />
-      <Route path="/poi-front.vercel.app/Dashboard" element={<Dashboard/>}></Route>
+      <Route path="/Dashboard" element={<Dashboard />}></Route>
     </Routes>
   );
 };
