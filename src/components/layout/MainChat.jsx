@@ -65,7 +65,7 @@ const MainChat = ({ openModal, initiateCall, selectedUser: initialSelectedUser, 
 
     // Crear conexión con el servidor Socket.IO
     // socketRef.current = io(`${API_URL}/private`);
-    socketRef.current = io('https://poi-back-xi.vercel.app/private');
+    socketRef.current = io('https://poi-back-v6at.onrender.com/private');
 
     // Manejar eventos de conexión
     socketRef.current.on('connect', () => {
@@ -245,7 +245,7 @@ socketRef.current.on('privateMessageConfirmation', (data) => {
       
       // Cargar mensajes desde la API
       // axios.get(`${API_URL}/api/mensajes/${loggedInUser.id}/${selectedUserState.id}`)
-      axios.get(`https://poi-back-xi.vercel.app/api/mensajes/${loggedInUser.id}/${selectedUserState.id}`)
+      axios.get(`https://poi-back-v6at.onrender.com/api/mensajes/${loggedInUser.id}/${selectedUserState.id}`)
         .then(response => {
           // Cargar los mensajes después de un pequeño retraso para permitir que el DOM se actualice
           setTimeout(() => {
@@ -377,7 +377,7 @@ socketRef.current.on('privateMessageConfirmation', (data) => {
 // Reemplazar el bloque existente de actualización de mensaje después de la carga
 try {
   // const response = await axios.post(`${API_URL}/api/mensajes/archivo`, formData, {
-    const response = await axios.post(`https://poi-back-xi.vercel.app/api/mensajes/archivo`, formData, {
+    const response = await axios.post(`https://poi-back-v6at.onrender.com/api/mensajes/archivo`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
     onUploadProgress: (progressEvent) => {
       const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
@@ -391,7 +391,7 @@ try {
   // Asegurarnos de que la URL sea completa con el servidor base
   if (sentMessage.file && sentMessage.file.url) {
     // const serverUrl = `${API_URL}`; // URL base del servidor
-    const serverUrl = 'https://poi-back-xi.vercel.app'; // URL base del servidor
+    const serverUrl = 'https://poi-back-v6at.onrender.com'; // URL base del servidor
     
     // Si la URL no comienza con http, agregarle el servidor base
     if (!sentMessage.file.url.startsWith('http')) {

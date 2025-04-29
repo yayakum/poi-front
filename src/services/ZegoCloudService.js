@@ -167,7 +167,7 @@ class ZegoCloudService {
   async registerCallInDB(callerId, receiverId) {
     // Llama a tu API para registrar la llamada
     // const response = await axios.post(`${API_URL}/api/calls/create`, {
-      const response = await axios.post('https://poi-back-xi.vercel.app/api/calls/create', {
+      const response = await axios.post('https://poi-back-v6at.onrender.com/api/calls/create', {
       iniciador_id: callerId,
       receptor_id: receiverId
     });
@@ -178,7 +178,8 @@ class ZegoCloudService {
   async updateCallStatus(callId, status) {
     // Llama a tu API para actualizar el estado de la llamada
     // const response = await axios.post(`${API_URL}/api/calls/update-status`, {
-      const response = await axios.post('https://poi-back-xi.vercel.app/api/calls/update-status', {
+      // const response = await axios.post('https://poi-back-xi.vercel.app/api/calls/update-status', {
+        const response = await axios.post('https://poi-back-v6at.onrender.com/calls/update-status', {
       callId: callId,
       estado: status
     });

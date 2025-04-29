@@ -135,7 +135,7 @@ const RegisterModal = ({ isOpen, onClose, onRegister }) => {
 
     try {
       // const response = await axios.post(`${API_URL}/api/users/`, {
-        const response = await axios.post('https://poi-back-xi.vercel.app/api/users', {
+        const response = await axios.post('https://poi-back-v6at.onrender.com/api/users', {
         nombre: registerName,
         telefono: registerPhone,
         password: registerPassword,

@@ -24,7 +24,7 @@ const ManageTaskModal = ({ closeModal, group }) => {
     try {
       setIsLoading(true);
       // const response = await axios.get(`${API_URL}/api/tasks/${groupId}`);
-      const response = await axios.get(`https://poi-back-xi.vercel.app/api/tasks/${groupId}`);
+      const response = await axios.get(`https://poi-back-v6at.onrender.com/api/tasks/${groupId}`);
       setTasks(response.data);
       setError(null);
     } catch (err) {
@@ -57,7 +57,7 @@ const ManageTaskModal = ({ closeModal, group }) => {
       }
 
       // await axios.put(`${API_URL}/api/tasks/${taskId}`, {
-      await axios.put(`https://poi-back-xi.vercel.app/api/tasks/${taskId}`, {
+      await axios.put(`https://poi-back-v6at.onrender.com/api/tasks/${taskId}`, {
         finalizado_por: loggedInUser.id
       });
 

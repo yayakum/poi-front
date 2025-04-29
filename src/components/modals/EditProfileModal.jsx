@@ -30,7 +30,7 @@ const EditProfileModal = ({ closeModal, userId }) => {
   // Inicializar socket para recibir actualizaciones en tiempo real
   useEffect(() => {
     // socketRef.current = io(`${API_URL}/private`);
-    socketRef.current = io('https://poi-back-xi.vercel.app/private');
+    socketRef.current = io('https://poi-back-v6at.onrender.com/private');
     
     return () => {
       if (socketRef.current) {
@@ -54,7 +54,7 @@ const EditProfileModal = ({ closeModal, userId }) => {
       
       // Hacer la petición a la API para datos del usuario
       // const response = await axios.get(`${API_URL}/api/users/${id}`, {
-        const response = await axios.get(`https://poi-back-xi.vercel.app/api/users/${id}`, {
+        const response = await axios.get(`https://poi-back-v6at.onrender.com/api/users/${id}`, {
         withCredentials: true
       });
       
@@ -92,7 +92,7 @@ const EditProfileModal = ({ closeModal, userId }) => {
   const fetchUserRewards = async (userId) => {
     try {
       // const response = await axios.get(`${API_URL}/api/rewards/user/${userId}`);
-      const response = await axios.get(`https://poi-back-xi.vercel.app/api/rewards/user/${userId}`);
+      const response = await axios.get(`https://poi-back-v6at.onrender.com/api/rewards/user/${userId}`);
       if (response.data && response.data.redeemedRewards) {
         setRedeemedRewards(response.data.redeemedRewards);
       }
@@ -205,7 +205,7 @@ const EditProfileModal = ({ closeModal, userId }) => {
       // Llamada a la API
       const response = await axios.put(
         // `${API_URL}/api/users/${id}`,
-        `https://poi-back-xi.vercel.app/api/users/${id}`,
+        `https://poi-back-v6at.onrender.com/api/users/${id}`,
         dataToUpdate,
         { withCredentials: true }
       );

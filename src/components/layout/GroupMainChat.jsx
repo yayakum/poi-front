@@ -69,7 +69,7 @@ const GroupChat = ({ openModal, selectedGroup, closeChat }) => {
 
     // Conectar al namespace de grupo
     // socketRef.current = io(`${API_URL}/group`);
-    socketRef.current = io('https://poi-back-xi.vercel.app/group');
+    socketRef.current = io('https://poi-back-v6at.onrender.com/group');
 
     socketRef.current.on('connect', () => {
       console.log('Conectado al servidor Socket.IO (grupo)');
@@ -169,7 +169,7 @@ const GroupChat = ({ openModal, selectedGroup, closeChat }) => {
     
     try {
       // const response = await axios.get(`${API_URL}/api/tasks/${selectedGroup.id}`);
-      const response = await axios.get(`https://poi-back-xi.vercel.app/api/tasks/${selectedGroup.id}`);
+      const response = await axios.get(`https://poi-back-v6at.onrender.com/api/tasks/${selectedGroup.id}`);
       const pendingTasks = response.data.filter(task => task.estatus !== 'completa');
       
       // Establecer el estado de notificación si hay tareas pendientes
@@ -217,7 +217,7 @@ const GroupChat = ({ openModal, selectedGroup, closeChat }) => {
 
       // Cargar mensajes del grupo
       // axios.get(`${API_URL}/api/messages/grupo/${selectedGroup.id}?userId=${loggedInUser.id}`)
-      axios.get(`https://poi-back-xi.vercel.app/api/messages/grupo/${selectedGroup.id}?userId=${loggedInUser.id}`)
+      axios.get(`https://poi-back-v6at.onrender.com/api/messages/grupo/${selectedGroup.id}?userId=${loggedInUser.id}`)
         .then(response => {
           setMessages(response.data.messages.map(msg => ({
             ...msg,
@@ -270,7 +270,7 @@ const GroupChat = ({ openModal, selectedGroup, closeChat }) => {
 
     // También enviar solicitud HTTP para respaldo/sincronización
     // axios.post(`${API_URL}/api/messages/grupo/read`, {
-      axios.post(`https://poi-back-xi.vercel.app/api/messages/grupo/read`, {
+      axios.post(`https://poi-back-v6at.onrender.com/api/messages/grupo/read`, {
       userId: loggedInUser.id,
       groupId: selectedGroup.id,
       messageIds: filteredIds
@@ -354,7 +354,7 @@ const GroupChat = ({ openModal, selectedGroup, closeChat }) => {
       
       try {
         // const response = await axios.post(`${API_URL}/api/mensajes/archivo`, formData, {
-          const response = await axios.post('https://poi-back-xi.vercel.app/api/mensajes/archivo', formData, {
+          const response = await axios.post('https://poi-back-v6at.onrender.com/api/mensajes/archivo', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
           onUploadProgress: (progressEvent) => {
             const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
@@ -368,7 +368,7 @@ const GroupChat = ({ openModal, selectedGroup, closeChat }) => {
         // Asegurarnos de que la URL sea completa con el servidor base
         if (sentMessage.file && sentMessage.file.url) {
           // const serverUrl = `${API_URL}`; // URL base del servidor
-          const serverUrl = 'https://poi-back-xi.vercel.app'; // URL base del servidor
+          const serverUrl = 'https://poi-back-v6at.onrender.com'; // URL base del servidor
           
           // Si la URL no comienza con http, agregarle el servidor base
           if (!sentMessage.file.url.startsWith('http')) {

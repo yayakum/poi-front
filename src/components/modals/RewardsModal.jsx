@@ -35,7 +35,7 @@ const RewardsModal = ({ closeModal }) => {
         
         // Obtener datos actualizados del usuario desde la API
         // const response = await axios.get(`${API_URL}/api/users/${storedUser.id}`, {
-          const response = await axios.get(`https://poi-back-xi.vercel.app/api/users/${storedUser.id}`, {
+          const response = await axios.get(`https://poi-back-v6at.onrender.com/api/users/${storedUser.id}`, {
           withCredentials: true
         });
         
@@ -72,7 +72,7 @@ const RewardsModal = ({ closeModal }) => {
       try {
         setLoading(true);
         // const response = await axios.get(`${API_URL}/api/rewards`);
-        const response = await axios.get('https://poi-back-xi.vercel.app/api/rewards');
+        const response = await axios.get('https://poi-back-v6at.onrender.com/api/rewards');
         
         if (response.data.ok && response.data.rewards) {
           // Ordenar las recompensas por costo (de menor a mayor)
@@ -101,7 +101,7 @@ const RewardsModal = ({ closeModal }) => {
           setLoading(true);
           // Obtener historial de recompensas canjeadas
           // const historyResponse = await axios.get(`${API_URL}/api/rewards/user/${userData.id}`);
-          const historyResponse = await axios.get(`https://poi-back-xi.vercel.app/api/rewards/user/${userData.id}`);
+          const historyResponse = await axios.get(`https://poi-back-v6at.onrender.com/api/rewards/user/${userData.id}`);
           
           if (historyResponse.data.redeemedRewards) {
             setRedeemedRewards(historyResponse.data.redeemedRewards);
@@ -157,7 +157,7 @@ const RewardsModal = ({ closeModal }) => {
     try {
       // Llamada al endpoint para canjear la recompensa
       // const response = await axios.post(`${API_URL}/api/rewards/redeem`, {
-        const response = await axios.post('https://poi-back-xi.vercel.app/api/rewards/redeem', {
+        const response = await axios.post('https://poi-back-v6at.onrender.com/api/rewards/redeem', {
         userId: userData.id,
         rewardId: rewardId
       });
@@ -168,7 +168,7 @@ const RewardsModal = ({ closeModal }) => {
         
         // Actualizar el historial de recompensas
         // const historyResponse = await axios.get(`${API_URL}/api/rewards/user/${userData.id}`);
-        const historyResponse = await axios.get(`https://poi-back-xi.vercel.app/api/rewards/user/${userData.id}`);
+        const historyResponse = await axios.get(`https://poi-back-v6at.onrender.com/api/rewards/user/${userData.id}`);
         if (historyResponse.data.redeemedRewards) {
           setRedeemedRewards(historyResponse.data.redeemedRewards);
         }
