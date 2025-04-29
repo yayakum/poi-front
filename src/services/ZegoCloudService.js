@@ -6,8 +6,8 @@ import axios from 'axios';
 class ZegoCloudService {
   constructor() {
     // Usa tus credenciales de Zegocloud
-    this.appID = 1830163647;
-    this.serverSecret = '1581969af00b8279f62a9433ea82e791';
+    this.appID = 1607583026;
+    this.serverSecret = '0f3ad6499c18598c14ee9ab9c9c124da';
     this.zp = null;
     this.localStream = null;
     this.remoteStream = null;
