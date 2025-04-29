@@ -51,7 +51,7 @@ const GroupInfoModal = ({ closeModal, group }) => {
         setLoading(true);
         // Solo llamamos a la API si tenemos un ID de grupo válido
         if (group && group.id) {
-          const response = await axios.get(`http://localhost:3000/api/grupos/miembro/${group.id}`);
+          const response = await axios.get(`https://poi-back-v6at.onrender.com/api/grupos/miembro/${group.id}`);
           setMembers(response.data.usuarios || []);
         } else {
           // Si no hay grupo, usamos los usuarios que ya vengan en el prop
@@ -72,7 +72,7 @@ const GroupInfoModal = ({ closeModal, group }) => {
       if (socketInitialized.current) return;
       
       try {
-        socketRef.current = io('http://localhost:3000/private');
+        socketRef.current = io('https://poi-back-v6at.onrender.com/private');
         
         const user = JSON.parse(localStorage.getItem('user'));
         if (user && user.id) {
